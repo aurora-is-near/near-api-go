@@ -8,6 +8,9 @@ Card](https://goreportcard.com/badge/github.com/aurora-is-near/near-api-go)](htt
 
 A Go library for development of DApps on the NEAR platform.
 
+There is also a [JavaScript/TypeScript
+implementation](https://github.com/near/near-api-js).
+
 ### Installation
 
     go get -u -v github.com/aurora-is-near/near-api-go
