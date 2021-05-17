@@ -23,7 +23,7 @@ type Transaction struct {
 
 // Action simulates an enum for Borsh encoding.
 type Action struct {
-	Enum           borsh.Enum `borsh_enum:"true"` // will treat this struct as a complex enum when serializing/deserializing
+	Enum           borsh.Enum `borsh_enum:"true"` // treat struct as complex enum when serializing/deserializing
 	CreateAccount  borsh.Enum
 	DeployContract DeployContract
 	FunctionCall   FunctionCall
