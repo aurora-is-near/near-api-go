@@ -7,3 +7,10 @@ Reference](https://pkg.go.dev/badge/github.com/aurora-is-near/near-api-go.svg)](
 Card](https://goreportcard.com/badge/github.com/aurora-is-near/near-api-go)](https://goreportcard.com/report/github.com/aurora-is-near/near-api-go)
 
 A Go library for development of DApps on the NEAR platform.
+
+### Installation
+
+    go get -u -v github.com/aurora-is-near/near-api-go
+
+(How to [install Go](https://golang.org/doc/install). Add `$GOPATH/bin`
+to your `$PATH`.)
