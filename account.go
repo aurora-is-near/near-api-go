@@ -159,11 +159,15 @@ func (a *Account) signTransaction(
 	blockHash := block["header"].(map[string]interface{})["hash"].(string)
 
 	// create next nonce
-	nonce, err := ak["nonce"].(json.Number).Int64()
-	if err != nil {
-		return nil, nil, err
+	var nonce int64
+	jsonNonce, ok := ak["nonce"].(json.Number)
+	if ok {
+		nonce, err = jsonNonce.Int64()
+		if err != nil {
+			return nil, nil, err
+		}
+		nonce++
 	}
-	nonce++
 
 	// save nonce
 	ak["nonce"] = json.Number(strconv.FormatInt(nonce, 10))
