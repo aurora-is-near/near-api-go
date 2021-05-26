@@ -1,17 +1,12 @@
 package near
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"math/big"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
+	"github.com/aurora-is-near/near-api-go/keystore"
 	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/near/borsh-go"
@@ -30,69 +25,25 @@ const txNonceRetryWaitBackoff = 1.5
 
 // Account defines access credentials for a NEAR account.
 type Account struct {
-	AccountID                 string `json:"account_id"`
-	PublicKey                 string `json:"public_key"`
-	PrivateKey                string `json:"private_key"`
 	conn                      *Connection
-	pubKey                    ed25519.PublicKey
-	privKey                   ed25519.PrivateKey
+	kp                        *keystore.Ed25519KeyPair
 	accessKeyByPublicKeyCache map[string]map[string]interface{}
 }
 
 // LoadAccount loads the credential for the receiverID account, to be used via
 // connection c, and returns it.
 func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error) {
-	var a Account
+	var (
+		a   Account
+		err error
+	)
 	a.conn = c
-	if err := a.locateAccessKey(cfg, receiverID); err != nil {
+	a.kp, err = keystore.LoadKeyPair(cfg.NetworkID, receiverID)
+	if err != nil {
 		return nil, err
 	}
 	a.accessKeyByPublicKeyCache = make(map[string]map[string]interface{})
 	return &a, nil
-}
-
-func (a *Account) locateAccessKey(cfg *Config, receiverID string) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	fn := filepath.Join(home, ".near-credentials", cfg.NetworkID, receiverID+".json")
-	return a.readAccessKey(fn, receiverID)
-}
-
-func (a *Account) readAccessKey(filename, receiverID string) error {
-	buf, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(buf, &a)
-	if err != nil {
-		return err
-	}
-	// account ID
-	if a.AccountID != receiverID {
-		return fmt.Errorf("near: parsed account_id '%s' does not match with receiverID '%s'",
-			a.AccountID, receiverID)
-	}
-	// public key
-	if !strings.HasPrefix(a.PublicKey, ed25519Prefix) {
-		return fmt.Errorf("near: parsed public_key '%s' is not an Ed25519 key",
-			a.PublicKey)
-	}
-	pubKey := base58.Decode(strings.TrimPrefix(a.PublicKey, ed25519Prefix))
-	a.pubKey = ed25519.PublicKey(pubKey)
-	// private key
-	if !strings.HasPrefix(a.PrivateKey, ed25519Prefix) {
-		return fmt.Errorf("near: parsed private_key '%s' is not an Ed25519 key",
-			a.PrivateKey)
-	}
-	privateKey := base58.Decode(strings.TrimPrefix(a.PrivateKey, ed25519Prefix))
-	a.privKey = ed25519.PrivateKey(privateKey)
-	// make sure keys match
-	if !bytes.Equal(pubKey, a.privKey.Public().(ed25519.PublicKey)) {
-		return fmt.Errorf("near: public_key does not match private_key: %s", filename)
-	}
-	return nil
 }
 
 // SendMoney sends amount NEAR from account to receiverID.
@@ -113,7 +64,7 @@ func (a *Account) SendMoney(
 func (a *Account) DeleteAccount(
 	beneficiaryID string,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(a.AccountID, []Action{{
+	return a.SignAndSendTransaction(a.kp.AccountID, []Action{{
 		Enum: 7,
 		DeleteAccount: DeleteAccount{
 			BeneficiaryID: beneficiaryID,
@@ -174,18 +125,18 @@ func (a *Account) signTransaction(
 
 	// sign transaction
 	return signTransaction(receiverID, uint64(nonce), actions, base58.Decode(blockHash),
-		a.pubKey, a.privKey, a.AccountID)
+		a.kp.Ed25519PubKey, a.kp.Ed25519PrivKey, a.kp.AccountID)
 
 }
 
 func (a *Account) findAccessKey() (publicKey ed25519.PublicKey, accessKey map[string]interface{}, err error) {
 	// TODO: Find matching access key based on transaction
 	// TODO: use accountId and networkId?
-	pk := a.pubKey
+	pk := a.kp.Ed25519PubKey
 	if ak := a.accessKeyByPublicKeyCache[string(publicKey)]; ak != nil {
 		return pk, ak, nil
 	}
-	ak, err := a.conn.ViewAccessKey(a.AccountID, a.PublicKey)
+	ak, err := a.conn.ViewAccessKey(a.kp.AccountID, a.kp.PublicKey)
 	if err != nil {
 		return nil, nil, err
 	}
