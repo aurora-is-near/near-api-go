@@ -11,6 +11,37 @@ import (
 	"github.com/near/borsh-go"
 )
 
+// AccessKey encodes a NEAR access key.
+type AccessKey struct {
+	Nonce      uint64
+	Permission AccessKeyPermission
+}
+
+// AccessKeyPermission encodes a NEAR access key permission.
+type AccessKeyPermission struct {
+	Enum         borsh.Enum `borsh_enum:"true"` // treat struct as complex enum when serializing/deserializing
+	FunctionCall FunctionCallPermission
+	FullAccess   borsh.Enum
+}
+
+// FunctionCallPermission encodes a NEAR function call permission (an access
+// key permission).
+type FunctionCallPermission struct {
+	Allowance   *big.Int
+	ReceiverId  string
+	MethodNames []string
+}
+
+func fullAccessKey() AccessKey {
+	return AccessKey{
+		Nonce: 0,
+		Permission: AccessKeyPermission{
+			Enum:       1,
+			FullAccess: 1,
+		},
+	}
+}
+
 // A Transaction encodes a NEAR transaction.
 type Transaction struct {
 	SignerID   string
@@ -61,8 +92,7 @@ type Stake struct {
 // The AddKey action.
 type AddKey struct {
 	PublicKey utils.PublicKey
-	// TODO: add
-	// AccessKey *utils.AccessKey
+	AccessKey AccessKey
 }
 
 // The DeleteKey action.

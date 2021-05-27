@@ -51,12 +51,41 @@ func (a *Account) SendMoney(
 	receiverID string,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(receiverID, []Action{{
-		Enum: 3,
-		Transfer: Transfer{
-			Deposit: amount,
+	return a.SignAndSendTransaction(receiverID, []Action{
+		{
+			Enum: 3,
+			Transfer: Transfer{
+				Deposit: amount,
+			},
 		},
-	}})
+	})
+}
+
+// CreateAccount creates the newAccountID with the given publicKey and amount.
+func (a *Account) CreateAccount(
+	newAccountID string,
+	publicKey utils.PublicKey,
+	amount big.Int,
+) (map[string]interface{}, error) {
+	return a.SignAndSendTransaction(newAccountID, []Action{
+		{
+			Enum:          0,
+			CreateAccount: 0,
+		},
+		{
+			Enum: 3,
+			Transfer: Transfer{
+				Deposit: amount,
+			},
+		},
+		{
+			Enum: 5,
+			AddKey: AddKey{
+				PublicKey: publicKey,
+				AccessKey: fullAccessKey(),
+			},
+		},
+	})
 }
 
 // DeleteAccount deletes the account and sends the remaining Ⓝ balance to the
@@ -64,12 +93,14 @@ func (a *Account) SendMoney(
 func (a *Account) DeleteAccount(
 	beneficiaryID string,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(a.kp.AccountID, []Action{{
-		Enum: 7,
-		DeleteAccount: DeleteAccount{
-			BeneficiaryID: beneficiaryID,
+	return a.SignAndSendTransaction(a.kp.AccountID, []Action{
+		{
+			Enum: 7,
+			DeleteAccount: DeleteAccount{
+				BeneficiaryID: beneficiaryID,
+			},
 		},
-	}})
+	})
 }
 
 // SignAndSendTransaction signs the given actions and sends them as a transaction to receiverID.
