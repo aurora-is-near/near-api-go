@@ -51,14 +51,14 @@ func (kp *Ed25519KeyPair) write(filename string) error {
 }
 
 // Write the Ed25519 key pair to the unencrypted file system key store with
-// networkID.
-func (kp *Ed25519KeyPair) Write(networkID string) error {
+// networkID and return the filename of the written file.
+func (kp *Ed25519KeyPair) Write(networkID string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 	filename := filepath.Join(home, ".near-credentials", networkID, kp.AccountID+".json")
-	return kp.write(filename)
+	return filename, kp.write(filename)
 }
 
 // LoadKeyPair reads the Ed25519 key pair for the given ccountID from path
