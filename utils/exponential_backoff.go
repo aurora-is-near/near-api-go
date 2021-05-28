@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// GetResult is the function type used for ExonentialBackoff.
+// GetResult is the function type used for ExponentialBackoff.
 type GetResult func() (map[string]interface{}, error)
 
 // ExponentialBackoff implements an exponential backoff strategy for calling
