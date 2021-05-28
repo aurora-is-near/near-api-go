@@ -11,14 +11,22 @@ import (
 func TestLoadAccessKey(t *testing.T) {
 	accountID := "test-account.testnet"
 	filename := filepath.Join("testdata", accountID+".json")
-	_, err := loadKeyPair(filename, accountID)
+	_, err := LoadKeyPairFromPath(filename, accountID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	accountID = "evm.test-account.testnet"
 	filename = filepath.Join("testdata", accountID+".json")
-	_, err = loadKeyPair(filename, accountID)
+	_, err = LoadKeyPairFromPath(filename, accountID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// special case "secret_key"
+	accountID = "test.near"
+	filename = filepath.Join("testdata", "validator_key.json")
+	_, err = LoadKeyPairFromPath(filename, accountID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +50,7 @@ func TestGenerateWriteRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	// read
-	kp2, err := loadKeyPair(filename, accountID)
+	kp2, err := LoadKeyPairFromPath(filename, accountID)
 	if err != nil {
 		t.Fatal(err)
 	}

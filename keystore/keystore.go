@@ -20,7 +20,8 @@ const ed25519Prefix = "ed25519:"
 type Ed25519KeyPair struct {
 	AccountID      string             `json:"account_id"`
 	PublicKey      string             `json:"public_key"`
-	PrivateKey     string             `json:"private_key"`
+	PrivateKey     string             `json:"private_key,omitempty"`
+	SecretKey      string             `json:"secret_key,omitempty"`
 	Ed25519PubKey  ed25519.PublicKey  `json:"-"`
 	Ed25519PrivKey ed25519.PrivateKey `json:"-"`
 }
@@ -85,12 +86,24 @@ func LoadKeyPairFromPath(path, accountID string) (*Ed25519KeyPair, error) {
 	pubKey := base58.Decode(strings.TrimPrefix(kp.PublicKey, ed25519Prefix))
 	kp.Ed25519PubKey = ed25519.PublicKey(pubKey)
 	// private key
-	if !strings.HasPrefix(kp.PrivateKey, ed25519Prefix) {
-		return nil, fmt.Errorf("keystore: parsed private_key '%s' is not an Ed25519 key",
-			kp.PrivateKey)
+	var privateKey []byte
+	if len(kp.PrivateKey) > 0 && len(kp.SecretKey) > 0 {
+		return nil, fmt.Errorf("keystore: private_key and secret_key are defined at the same time: %s", path)
+	} else if len(kp.PrivateKey) > 0 {
+		if !strings.HasPrefix(kp.PrivateKey, ed25519Prefix) {
+			return nil, fmt.Errorf("keystore: parsed private_key '%s' is not an Ed25519 key",
+				kp.PrivateKey)
+		}
+		privateKey = base58.Decode(strings.TrimPrefix(kp.PrivateKey, ed25519Prefix))
+	} else { // secret_key
+		if !strings.HasPrefix(kp.SecretKey, ed25519Prefix) {
+			return nil, fmt.Errorf("keystore: parsed secret_key '%s' is not an Ed25519 key",
+				kp.SecretKey)
+		}
+		privateKey = base58.Decode(strings.TrimPrefix(kp.SecretKey, ed25519Prefix))
 	}
-	privateKey := base58.Decode(strings.TrimPrefix(kp.PrivateKey, ed25519Prefix))
 	kp.Ed25519PrivKey = ed25519.PrivateKey(privateKey)
+
 	// make sure keys match
 	if !bytes.Equal(pubKey, kp.Ed25519PrivKey.Public().(ed25519.PublicKey)) {
 		return nil, fmt.Errorf("keystore: public_key does not match private_key: %s", path)
