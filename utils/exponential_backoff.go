@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"time"
 )
@@ -28,6 +27,5 @@ func ExponentialBackoff(
 		time.Sleep(time.Duration(waitTime) * time.Millisecond)
 		waitTime = int(float64(waitTime) * waitBackoff)
 	}
-
-	return nil, errors.New("utils: exponential backoff failed")
+	return nil, ErrRetriesExceeded
 }
