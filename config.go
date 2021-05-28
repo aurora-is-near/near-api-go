@@ -1,11 +1,25 @@
 package near
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
 // A Config for the NEAR network.
 type Config struct {
 	NetworkID string
 	NodeURL   string
+	KeyPath   string
+}
+
+var home string
+
+func init() {
+	var err error
+	home, err = os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
 }
 
 // GetConfig returns the NEAR network config depending on the setting of the
@@ -28,6 +42,7 @@ func GetConfig() *Config {
 		return &Config{
 			NetworkID: "local",
 			NodeURL:   "http://localhost:3030",
+			KeyPath:   filepath.Join(home, ".near", "validator_key.json"),
 		}
 	case "development":
 		fallthrough

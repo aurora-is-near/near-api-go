@@ -38,7 +38,11 @@ func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error
 		err error
 	)
 	a.conn = c
-	a.kp, err = keystore.LoadKeyPair(cfg.NetworkID, receiverID)
+	if cfg.KeyPath != "" {
+		a.kp, err = keystore.LoadKeyPairFromPath(cfg.KeyPath, receiverID)
+	} else {
+		a.kp, err = keystore.LoadKeyPair(cfg.NetworkID, receiverID)
+	}
 	if err != nil {
 		return nil, err
 	}

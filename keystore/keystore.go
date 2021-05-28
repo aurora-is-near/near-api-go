@@ -60,8 +60,10 @@ func (kp *Ed25519KeyPair) Write(networkID string) error {
 	return kp.write(filename)
 }
 
-func loadKeyPair(filename, accountID string) (*Ed25519KeyPair, error) {
-	buf, err := os.ReadFile(filename)
+// LoadKeyPair reads the Ed25519 key pair for the given ccountID from path
+// returns it.
+func LoadKeyPairFromPath(path, accountID string) (*Ed25519KeyPair, error) {
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -91,18 +93,18 @@ func loadKeyPair(filename, accountID string) (*Ed25519KeyPair, error) {
 	kp.Ed25519PrivKey = ed25519.PrivateKey(privateKey)
 	// make sure keys match
 	if !bytes.Equal(pubKey, kp.Ed25519PrivKey.Public().(ed25519.PublicKey)) {
-		return nil, fmt.Errorf("keystore: public_key does not match private_key: %s", filename)
+		return nil, fmt.Errorf("keystore: public_key does not match private_key: %s", path)
 	}
 	return &kp, nil
 }
 
 // LoadKeyPair reads the Ed25519 key pair for the given networkID and
-// accountID form the unencrypted file system key store and returns it.
+// accountID from the unencrypted file system key store and returns it.
 func LoadKeyPair(networkID, accountID string) (*Ed25519KeyPair, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
 	filename := filepath.Join(home, ".near-credentials", networkID, accountID+".json")
-	return loadKeyPair(filename, accountID)
+	return LoadKeyPairFromPath(filename, accountID)
 }
