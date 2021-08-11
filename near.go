@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ybbus/jsonrpc/v2"
+	"github.com/aurora-is-near/go-jsonrpc"
 )
 
 // Connection allows to do JSON-RPC to a NEAR endpoint.
