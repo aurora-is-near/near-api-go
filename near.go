@@ -109,16 +109,15 @@ func (c *Connection) GetAccountState(accountID string) (map[string]interface{}, 
 	return r, nil
 }
 
-// GetContractState returns returns the state (key value pairs) of a contract.
+// GetContractCode returns the contract code (Wasm binary) deployed to the account.
 //
 // For details see
-// https://docs.near.org/docs/api/rpc/contracts#view-contract-state
-func (c *Connection) GetContractState(accountID string) (map[string]interface{}, error) {
+// https://docs.near.org/docs/api/rpc/contracts#view-contract-code
+func (c *Connection) GetContractCode(accountID string) (map[string]interface{}, error) {
 	res, err := c.call("query", map[string]string{
-		"request_type":  "view_state",
-		"finality":      "final",
-		"account_id":    accountID,
-		"prefix_base64": "",
+		"request_type": "view_code",
+		"finality":     "final",
+		"account_id":   accountID,
 	})
 	if err != nil {
 		return nil, err
