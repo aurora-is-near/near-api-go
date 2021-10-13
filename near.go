@@ -73,15 +73,52 @@ func (c *Connection) Block() (map[string]interface{}, error) {
 	return r, nil
 }
 
-// State returns basic account information for given accountID.
+// GetNodeStatus returns general status of a given node.
 //
 // For details see
-// https://docs.near.org/docs/develop/front-end/rpc#accounts--contracts
-func (c *Connection) State(accountID string) (map[string]interface{}, error) {
+// https://docs.near.org/docs/api/rpc/network#node-status
+func (c *Connection) GetNodeStatus() (map[string]interface{}, error) {
+	res, err := c.call("query", map[string]string{})
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
+
+// GetAccountState returns basic account information for given accountID.
+//
+// For details see
+// https://docs.near.org/docs/api/rpc/contracts#view-account
+func (c *Connection) GetAccountState(accountID string) (map[string]interface{}, error) {
 	res, err := c.call("query", map[string]string{
 		"request_type": "view_account",
 		"finality":     "final",
 		"account_id":   accountID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
+
+// GetContractState returns returns the state (key value pairs) of a contract.
+//
+// For details see
+// https://docs.near.org/docs/api/rpc/contracts#view-contract-state
+func (c *Connection) GetContractState(accountID string) (map[string]interface{}, error) {
+	res, err := c.call("query", map[string]string{
+		"request_type":  "view_state",
+		"finality":      "final",
+		"account_id":    accountID,
+		"prefix_base64": "",
 	})
 	if err != nil {
 		return nil, err
