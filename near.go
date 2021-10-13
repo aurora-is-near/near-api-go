@@ -78,7 +78,7 @@ func (c *Connection) Block() (map[string]interface{}, error) {
 // For details see
 // https://docs.near.org/docs/api/rpc/network#node-status
 func (c *Connection) GetNodeStatus() (map[string]interface{}, error) {
-	res, err := c.call("query", map[string]string{})
+	res, err := c.call("status", map[string]string{})
 	if err != nil {
 		return nil, err
 	}
