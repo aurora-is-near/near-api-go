@@ -1,4 +1,4 @@
-// Package main generates a near node/account/validator key.
+// nearkey generates a near node/account/validator key.
 package main
 
 import (

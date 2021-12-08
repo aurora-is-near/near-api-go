@@ -1,4 +1,4 @@
-// Package main implements a tool to send large encoded arguments to a contract method.
+// nearcall allows to send large encoded arguments to a contract method.
 package main
 
 import (
@@ -9,10 +9,9 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/aurora-is-near/near-api-go"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var (
