@@ -187,6 +187,26 @@ func (c *Connection) ViewAccessKey(accountID, publicKey string) (map[string]inte
 	return r, nil
 }
 
+// ViewAccessKeyList returns all access keys for the given accountID.
+//
+// For details see
+// https://docs.near.org/docs/api/rpc/access-keys#view-access-key-list
+func (c *Connection) ViewAccessKeyList(accountID string) (map[string]interface{}, error) {
+	res, err := c.call("query", map[string]string{
+		"request_type": "view_access_key_list",
+		"finality":     "final",
+		"account_id":   accountID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
+
 // GetTransactionLastResult decodes the last transaction result from a JSON
 // map and tries to deterimine if we have an error condition.
 func GetTransactionLastResult(txResult map[string]interface{}) (interface{}, error) {
