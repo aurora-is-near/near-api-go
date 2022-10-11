@@ -2,6 +2,7 @@ package near
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"math/big"
 	"strconv"
@@ -128,6 +129,23 @@ func (a *Account) SignAndSendTransaction(
 		})
 }
 
+// SignAndSendTransactionAsync signs the given actions and sends it immediately
+func (a *Account) SignAndSendTransactionAsync(
+	receiverID string,
+	actions []Action,
+) (string, error) {
+	_, signedTx, err := a.signTransaction(receiverID, actions)
+	if err != nil {
+		return "", err
+	}
+
+	buf, err := borsh.Serialize(*signedTx)
+	if err != nil {
+		return "", err
+	}
+	return a.conn.SendTransactionAsync(buf)
+}
+
 func (a *Account) signTransaction(
 	receiverID string,
 	actions []Action,
@@ -195,4 +213,65 @@ func (a *Account) FunctionCall(
 			Deposit:    amount,
 		},
 	}})
+}
+
+// FunctionCallAsync performs an asynch NEAR function call.
+func (a *Account) FunctionCallAsync(
+	contractID, methodName string,
+	args []byte,
+	gas uint64,
+	amount big.Int,
+) (string, error) {
+	return a.SignAndSendTransactionAsync(contractID, []Action{{
+		Enum: 2,
+		FunctionCall: FunctionCall{
+			MethodName: methodName,
+			Args:       args,
+			Gas:        gas,
+			Deposit:    amount,
+		},
+	}})
+}
+
+// ViewFunction calls the provided contract method as a readonly function
+func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, options *int64) (interface{}, error) {
+	finality := "final"
+	var blockId int64
+	if options != nil {
+		switch *options {
+		case 0: //"earliest"
+			blockId = 1
+		case -1: //"latest"
+			finality = "final"
+		case -2: //"pending"
+			finality = "optimistic"
+		case -3: //"finalized"
+			finality = "final"
+		case -4: //"safe":
+			finality = "final"
+		default:
+			blockId = *options
+		}
+	}
+	rpcQueryMap := map[string]interface{}{
+		"request_type": "call_function",
+		"account_id":   accountId,
+		"method_name":  methodName,
+		"args_base64":  base64.StdEncoding.EncodeToString(argsBuf),
+	}
+	if blockId > 0 {
+		rpcQueryMap["block_id"] = blockId
+	} else {
+		rpcQueryMap["finality"] = finality
+	}
+
+	res, err := a.conn.call("query", rpcQueryMap)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
 }
