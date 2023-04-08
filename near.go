@@ -135,8 +135,8 @@ func (c *Connection) GetContractCode(accountID string) (map[string]interface{}, 
 // For details see
 // https://docs.near.org/docs/develop/front-end/rpc#send-transaction-await
 func (c *Connection) SendTransaction(signedTransaction []byte) (map[string]interface{}, error) {
-	res, err := c.call("broadcast_tx_commit",
-		base64.StdEncoding.EncodeToString(signedTransaction))
+	base64Msg := base64.StdEncoding.EncodeToString(signedTransaction)
+	res, err := c.call("broadcast_tx_commit", base64Msg)
 	if err != nil {
 		return nil, err
 	}

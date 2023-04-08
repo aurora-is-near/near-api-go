@@ -176,8 +176,11 @@ func (a *Account) signTransaction(
 	// save nonce
 	ak["nonce"] = json.Number(strconv.FormatInt(nonce, 10))
 
+	decodeblockHash := base58.Decode(blockHash)
+
+	uint64nonce := uint64(nonce)
 	// sign transaction
-	return signTransaction(receiverID, uint64(nonce), actions, base58.Decode(blockHash),
+	return signTransaction(receiverID, uint64nonce, actions, decodeblockHash,
 		a.kp.Ed25519PubKey, a.kp.Ed25519PrivKey, a.kp.AccountID)
 
 }
