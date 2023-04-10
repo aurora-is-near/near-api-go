@@ -36,7 +36,7 @@ func NewConnectionWithTimeout(nodeURL string, timeout time.Duration) *Connection
 
 // call uses the connection c to call the given method with params.
 // It handles all possible error cases and returns the result (which cannot be nil).
-func (c *Connection) call(method string, params ...interface{}) (interface{}, error) {
+func (c *Connection) Call(method string, params ...interface{}) (interface{}, error) {
 	start := time.Now()
 	res, err := c.c.Call(method, params...)
 	if err != nil {
@@ -60,7 +60,7 @@ func (c *Connection) call(method string, params ...interface{}) (interface{}, er
 //
 // For details see https://docs.near.org/docs/interaction/rpc#block
 func (c *Connection) Block() (map[string]interface{}, error) {
-	res, err := c.call("block", map[string]string{
+	res, err := c.Call("block", map[string]string{
 		"finality": "final",
 	})
 	if err != nil {
@@ -78,7 +78,7 @@ func (c *Connection) Block() (map[string]interface{}, error) {
 // For details see
 // https://docs.near.org/docs/api/rpc/network#node-status
 func (c *Connection) GetNodeStatus() (map[string]interface{}, error) {
-	res, err := c.call("status", map[string]string{})
+	res, err := c.Call("status", map[string]string{})
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (c *Connection) GetNodeStatus() (map[string]interface{}, error) {
 // For details see
 // https://docs.near.org/docs/api/rpc/contracts#view-account
 func (c *Connection) GetAccountState(accountID string) (map[string]interface{}, error) {
-	res, err := c.call("query", map[string]string{
+	res, err := c.Call("query", map[string]string{
 		"request_type": "view_account",
 		"finality":     "final",
 		"account_id":   accountID,
@@ -114,7 +114,7 @@ func (c *Connection) GetAccountState(accountID string) (map[string]interface{}, 
 // For details see
 // https://docs.near.org/docs/api/rpc/contracts#view-contract-code
 func (c *Connection) GetContractCode(accountID string) (map[string]interface{}, error) {
-	res, err := c.call("query", map[string]string{
+	res, err := c.Call("query", map[string]string{
 		"request_type": "view_code",
 		"finality":     "final",
 		"account_id":   accountID,
@@ -136,7 +136,7 @@ func (c *Connection) GetContractCode(accountID string) (map[string]interface{}, 
 // https://docs.near.org/docs/develop/front-end/rpc#send-transaction-await
 func (c *Connection) SendTransaction(signedTransaction []byte) (map[string]interface{}, error) {
 	base64Msg := base64.StdEncoding.EncodeToString(signedTransaction)
-	res, err := c.call("broadcast_tx_commit", base64Msg)
+	res, err := c.Call("broadcast_tx_commit", base64Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (c *Connection) SendTransaction(signedTransaction []byte) (map[string]inter
 // For details see
 // https://docs.near.org/docs/develop/front-end/rpc#send-transaction-async
 func (c *Connection) SendTransactionAsync(signedTransaction []byte) (string, error) {
-	res, err := c.call("broadcast_tx_async",
+	res, err := c.Call("broadcast_tx_async",
 		base64.StdEncoding.EncodeToString(signedTransaction))
 	if err != nil {
 		return "", err
@@ -171,7 +171,7 @@ func (c *Connection) SendTransactionAsync(signedTransaction []byte) (string, err
 // For details see
 // https://docs.near.org/docs/develop/front-end/rpc#view-access-key
 func (c *Connection) ViewAccessKey(accountID, publicKey string) (map[string]interface{}, error) {
-	res, err := c.call("query", map[string]string{
+	res, err := c.Call("query", map[string]string{
 		"request_type": "view_access_key",
 		"finality":     "final",
 		"account_id":   accountID,
@@ -192,7 +192,7 @@ func (c *Connection) ViewAccessKey(accountID, publicKey string) (map[string]inte
 // For details see
 // https://docs.near.org/docs/api/rpc/access-keys#view-access-key-list
 func (c *Connection) ViewAccessKeyList(accountID string) (map[string]interface{}, error) {
-	res, err := c.call("query", map[string]string{
+	res, err := c.Call("query", map[string]string{
 		"request_type": "view_access_key_list",
 		"finality":     "final",
 		"account_id":   accountID,

@@ -31,6 +31,14 @@ type Account struct {
 	accessKeyByPublicKeyCache map[string]map[string]interface{}
 }
 
+func LoadAccountDirectly(c *Connection, kp *keystore.Ed25519KeyPair, accessKeyByPublicKeyCache map[string]map[string]interface{}) *Account {
+	return &Account{
+		conn:                      c,
+		kp:                        kp,
+		accessKeyByPublicKeyCache: accessKeyByPublicKeyCache,
+	}
+}
+
 // LoadAccount loads the credential for the receiverID account, to be used via
 // connection c, and returns it.
 func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error) {
@@ -268,7 +276,7 @@ func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, opt
 		rpcQueryMap["finality"] = finality
 	}
 
-	res, err := a.conn.call("query", rpcQueryMap)
+	res, err := a.conn.Call("query", rpcQueryMap)
 	if err != nil {
 		return nil, err
 	}
