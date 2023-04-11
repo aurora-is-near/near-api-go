@@ -154,6 +154,45 @@ func (a *Account) SignAndSendTransactionAsync(
 	return a.conn.SendTransactionAsync(buf)
 }
 
+// 构建Transaction信息
+func (a *Account) BuildTransaction(receiverID string, actions []Action) (*Transaction, error) {
+	_, ak, err := a.findAccessKey()
+	if err != nil {
+		return nil, err
+	}
+
+	// get current block hash
+	block, err := a.conn.Block()
+	if err != nil {
+		return nil, err
+	}
+	blockHash := block["header"].(map[string]interface{})["hash"].(string)
+
+	// create next nonce
+	var nonce int64
+	jsonNonce, ok := ak["nonce"].(json.Number)
+	if ok {
+		nonce, err = jsonNonce.Int64()
+		if err != nil {
+			return nil, err
+		}
+		nonce++
+	}
+
+	// save nonce
+	ak["nonce"] = json.Number(strconv.FormatInt(nonce, 10))
+
+	decodeblockHash := base58.Decode(blockHash)
+
+	uint64nonce := uint64(nonce)
+
+	tx := createTransaction(a.kp.AccountID, utils.PublicKeyFromEd25519(a.kp.Ed25519PubKey),
+		receiverID, uint64nonce, decodeblockHash, actions)
+
+	return tx, nil
+
+}
+
 func (a *Account) signTransaction(
 	receiverID string,
 	actions []Action,
