@@ -1,8 +1,8 @@
 /*
  * @Author: huyongchao huyongchao98@163.com
  * @Date: 2023-04-08 14:16:20
- * @LastEditors: huyongchao huyongchao98@163.com
- * @LastEditTime: 2023-04-08 17:06:57
+ * @LastEditors: 胡勇超 huyongchao98@163.com
+ * @LastEditTime: 2023-04-14 06:42:51
  * @FilePath: /near-api-go/account_test.go
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -74,8 +74,8 @@ func TestGenerateEd25519KeyPair(t *testing.T) {
 
 func TestTransferWithAction(t *testing.T) {
 	a := buildAccount()
-	receiveAccountID := "example-account344.testdafa.testnet"
-	finalExecutionOutcome, transactionErr := a.SendMoney(receiveAccountID, *big.NewInt(10))
+	receiveAccountID := "teststfqq.testdafa.testnet"
+	finalExecutionOutcome, transactionErr := a.SendMoney(receiveAccountID, *big.NewInt(15000))
 	require.NoError(t, transactionErr, "报错了")
 	fmt.Println(finalExecutionOutcome)
 }

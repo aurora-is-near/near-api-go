@@ -16,13 +16,13 @@ import (
 const ed25519Prefix = "ed25519:"
 
 // Default number of retries with different nonce before giving up on a transaction.
-const txNonceRetryNumber = 12
+const TxNonceRetryNumber = 12
 
 // Default wait until next retry in milli seconds.
-const txNonceRetryWait = 500
+const TxNonceRetryWait = 500
 
 // Exponential back off for waiting to retry.
-const txNonceRetryWaitBackoff = 1.5
+const TxNonceRetryWaitBackoff = 1.5
 
 // Account defines access credentials for a NEAR account.
 type Account struct {
@@ -121,7 +121,7 @@ func (a *Account) SignAndSendTransaction(
 	receiverID string,
 	actions []Action,
 ) (map[string]interface{}, error) {
-	return utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
+	return utils.ExponentialBackoff(TxNonceRetryWait, TxNonceRetryNumber, TxNonceRetryWaitBackoff,
 		func() (map[string]interface{}, error) {
 			_, signedTx, err := a.signTransaction(receiverID, actions)
 			if err != nil {
