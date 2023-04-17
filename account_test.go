@@ -2,7 +2,7 @@
  * @Author: huyongchao huyongchao98@163.com
  * @Date: 2023-04-08 14:16:20
  * @LastEditors: 胡勇超 huyongchao98@163.com
- * @LastEditTime: 2023-04-16 17:44:56
+ * @LastEditTime: 2023-04-17 18:42:30
  * @FilePath: /near-api-go/account_test.go
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -13,46 +13,28 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/aurora-is-near/near-api-go/keystore"
 	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/near/borsh-go"
 	"github.com/stretchr/testify/require"
 )
 
-func buildAccount() Account {
-	rpcEndpoint := "https://rpc.testnet.near.org"
-	mainAccountID := "testdafa.testnet"
-
-	connection := NewConnectionWithTimeout(rpcEndpoint, time.Second*10)
-
-	keyPair := keystore.Ed25519KeyPair{
-		AccountID:      mainAccountID,
-		PublicKey:      "ed25519:6wTjVszCPsk6ZGjVNk4tTjHpY2A7AMypfapcWCfo8umZ",
-		PrivateKey:     "ed25519:3G7BmuSTuo825Y1kCTyRwMm9incjuNDcf24p42pKi9PgDv3JyvPzJT4Kb88mRHR3KyPDXNu2Gsy3w8dRMAR6eKoM",
-		Ed25519PubKey:  base58.Decode("6wTjVszCPsk6ZGjVNk4tTjHpY2A7AMypfapcWCfo8umZ"),
-		Ed25519PrivKey: base58.Decode("3G7BmuSTuo825Y1kCTyRwMm9incjuNDcf24p42pKi9PgDv3JyvPzJT4Kb88mRHR3KyPDXNu2Gsy3w8dRMAR6eKoM"),
-	}
-
-	a := Account{
-		conn: connection,
-		kp:   &keyPair,
-	}
-
-	a.accessKeyByPublicKeyCache = make(map[string]map[string]interface{})
-	return a
-}
 func TestCreateAccountTransactionWithFunctionCall(t *testing.T) {
 
-	newAccountID := "example-2212.testdafa.testnet"
+	newAccountID := "dfjadfjfdaf123234.testdafa.testnet"
 
-	a := buildAccount()
+	a := BuildAccount()
 
 	pub, _, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err, "报错了")
 
 	pubKey := utils.PublicKeyFromEd25519(pub)
+
+	pubKeyStr := base58.Encode(pubKey.Data[:])
+
+	fmt.Println("pubKeyStr:", pubKeyStr)
 
 	bigInt := big.NewInt(0)
 
@@ -73,9 +55,44 @@ func TestGenerateEd25519KeyPair(t *testing.T) {
 }
 
 func TestTransferWithAction(t *testing.T) {
-	a := buildAccount()
-	receiveAccountID := "dafadftestqw4.testdafa.testnet"
+	a := BuildAccount()
+	receiveAccountID := "wrerr1wesdsdadad.testdafa.testnet"
 	finalExecutionOutcome, transactionErr := a.SendMoney(receiveAccountID, *big.NewInt(150000000000000000))
 	require.NoError(t, transactionErr, "报错了")
 	fmt.Println(finalExecutionOutcome)
+}
+
+func TestBuildTrasaction(t *testing.T) {
+	receiverID := "dfjadfjfdaf1232.testdafa.testnet"
+
+	a := BuildAccount()
+
+	bigIntAmount := big.NewInt(1000)
+
+	actions := []Action{
+		{
+			Enum: 3,
+			Transfer: Transfer{
+				Deposit: *bigIntAmount,
+			},
+		},
+	}
+
+	transaction, buildTransactionErr := a.BuildTransaction(receiverID, actions)
+	require.NoError(t, buildTransactionErr)
+
+	txHash, signedTx, signTransactionObjectErr := signTransactionObject(transaction, a.kp.Ed25519PrivKey, a.kp.AccountID)
+
+	require.NoError(t, signTransactionObjectErr)
+	require.NotNil(t, txHash)
+
+	buf, SerializeErr := borsh.Serialize(*signedTx)
+	require.NoError(t, SerializeErr)
+
+	resultMap, sentErr := a.conn.SendTransaction(buf)
+
+	require.NoError(t, sentErr)
+
+	require.NotNil(t, resultMap)
+
 }

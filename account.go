@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strconv"
 
@@ -123,7 +124,7 @@ func (a *Account) SignAndSendTransaction(
 ) (map[string]interface{}, error) {
 	return utils.ExponentialBackoff(TxNonceRetryWait, TxNonceRetryNumber, TxNonceRetryWaitBackoff,
 		func() (map[string]interface{}, error) {
-			_, signedTx, err := a.signTransaction(receiverID, actions)
+			_, signedTx, err := a.SignTransaction(receiverID, actions)
 			if err != nil {
 				return nil, err
 			}
@@ -142,7 +143,7 @@ func (a *Account) SignAndSendTransactionAsync(
 	receiverID string,
 	actions []Action,
 ) (string, error) {
-	_, signedTx, err := a.signTransaction(receiverID, actions)
+	_, signedTx, err := a.SignTransaction(receiverID, actions)
 	if err != nil {
 		return "", err
 	}
@@ -159,6 +160,13 @@ func (a *Account) BuildTransaction(receiverID string, actions []Action) (*Transa
 	_, ak, err := a.findAccessKey()
 	if err != nil {
 		return nil, err
+	}
+	theError := ak["error"]
+	if theError != nil {
+		errorStr := ak["error"].(string)
+		if errorStr != "" {
+			return nil, fmt.Errorf(errorStr)
+		}
 	}
 
 	// get current block hash
@@ -193,7 +201,7 @@ func (a *Account) BuildTransaction(receiverID string, actions []Action) (*Transa
 
 }
 
-func (a *Account) signTransaction(
+func (a *Account) SignTransaction(
 	receiverID string,
 	actions []Action,
 ) (txHash []byte, signedTx *SignedTransaction, err error) {
