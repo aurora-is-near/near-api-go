@@ -333,3 +333,23 @@ func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, opt
 	}
 	return r, nil
 }
+
+// ViewFunction calls the provided contract method as a readonly function
+func (a *Account) AccountView(accountId string) (interface{}, error) {
+
+	rpcQueryMap := map[string]interface{}{
+		"request_type": "view_account",
+		"account_id":   accountId,
+		"finality":     "final",
+	}
+
+	res, err := a.conn.Call("query", rpcQueryMap)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
