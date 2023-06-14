@@ -4,31 +4,42 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strconv"
 
 	"github.com/aurora-is-near/near-api-go/keystore"
 	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/mitchellh/mapstructure"
 	"github.com/near/borsh-go"
+	"github.com/shopspring/decimal"
 )
 
 const ed25519Prefix = "ed25519:"
 
 // Default number of retries with different nonce before giving up on a transaction.
-const txNonceRetryNumber = 12
+const TxNonceRetryNumber = 12
 
 // Default wait until next retry in milli seconds.
-const txNonceRetryWait = 500
+const TxNonceRetryWait = 500
 
 // Exponential back off for waiting to retry.
-const txNonceRetryWaitBackoff = 1.5
+const TxNonceRetryWaitBackoff = 1.5
 
 // Account defines access credentials for a NEAR account.
 type Account struct {
 	conn                      *Connection
 	kp                        *keystore.Ed25519KeyPair
 	accessKeyByPublicKeyCache map[string]map[string]interface{}
+}
+
+func LoadAccountDirectly(c *Connection, kp *keystore.Ed25519KeyPair, accessKeyByPublicKeyCache map[string]map[string]interface{}) *Account {
+	return &Account{
+		conn:                      c,
+		kp:                        kp,
+		accessKeyByPublicKeyCache: accessKeyByPublicKeyCache,
+	}
 }
 
 // LoadAccount loads the credential for the receiverID account, to be used via
@@ -113,9 +124,9 @@ func (a *Account) SignAndSendTransaction(
 	receiverID string,
 	actions []Action,
 ) (map[string]interface{}, error) {
-	return utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
+	return utils.ExponentialBackoff(TxNonceRetryWait, TxNonceRetryNumber, TxNonceRetryWaitBackoff,
 		func() (map[string]interface{}, error) {
-			_, signedTx, err := a.signTransaction(receiverID, actions)
+			_, signedTx, err := a.SignTransaction(receiverID, actions)
 			if err != nil {
 				return nil, err
 			}
@@ -134,7 +145,7 @@ func (a *Account) SignAndSendTransactionAsync(
 	receiverID string,
 	actions []Action,
 ) (string, error) {
-	_, signedTx, err := a.signTransaction(receiverID, actions)
+	_, signedTx, err := a.SignTransaction(receiverID, actions)
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +157,53 @@ func (a *Account) SignAndSendTransactionAsync(
 	return a.conn.SendTransactionAsync(buf)
 }
 
-func (a *Account) signTransaction(
+// 构建Transaction信息
+func (a *Account) BuildTransaction(receiverID string, actions []Action) (*Transaction, error) {
+	_, ak, err := a.findAccessKey()
+	if err != nil {
+		return nil, err
+	}
+	theError := ak["error"]
+	if theError != nil {
+		errorStr := ak["error"].(string)
+		if errorStr != "" {
+			return nil, fmt.Errorf(errorStr)
+		}
+	}
+
+	// get current block hash
+	block, err := a.conn.Block()
+	if err != nil {
+		return nil, err
+	}
+	blockHash := block["header"].(map[string]interface{})["hash"].(string)
+
+	// create next nonce
+	var nonce int64
+	jsonNonce, ok := ak["nonce"].(json.Number)
+	if ok {
+		nonce, err = jsonNonce.Int64()
+		if err != nil {
+			return nil, err
+		}
+		nonce++
+	}
+
+	// save nonce
+	ak["nonce"] = json.Number(strconv.FormatInt(nonce, 10))
+
+	decodeblockHash := base58.Decode(blockHash)
+
+	uint64nonce := uint64(nonce)
+
+	tx := createTransaction(a.kp.AccountID, utils.PublicKeyFromEd25519(a.kp.Ed25519PubKey),
+		receiverID, uint64nonce, decodeblockHash, actions)
+
+	return tx, nil
+
+}
+
+func (a *Account) SignTransaction(
 	receiverID string,
 	actions []Action,
 ) (txHash []byte, signedTx *SignedTransaction, err error) {
@@ -176,8 +233,11 @@ func (a *Account) signTransaction(
 	// save nonce
 	ak["nonce"] = json.Number(strconv.FormatInt(nonce, 10))
 
+	decodeblockHash := base58.Decode(blockHash)
+
+	uint64nonce := uint64(nonce)
 	// sign transaction
-	return signTransaction(receiverID, uint64(nonce), actions, base58.Decode(blockHash),
+	return signTransaction(receiverID, uint64nonce, actions, decodeblockHash,
 		a.kp.Ed25519PubKey, a.kp.Ed25519PrivKey, a.kp.AccountID)
 
 }
@@ -265,7 +325,7 @@ func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, opt
 		rpcQueryMap["finality"] = finality
 	}
 
-	res, err := a.conn.call("query", rpcQueryMap)
+	res, err := a.conn.Call("query", rpcQueryMap)
 	if err != nil {
 		return nil, err
 	}
@@ -274,4 +334,102 @@ func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, opt
 		return nil, ErrNotObject
 	}
 	return r, nil
+}
+
+type VeiwAccount struct {
+	Amount        string `json:"amount"`
+	BlockHash     string `json:"block_hash"`
+	BlockHeight   int    `json:"block_height"`
+	CodeHash      string `json:"code_hash"`
+	Locked        string `json:"locked"`
+	StoragePaidAt int    `json:"storage_paid_at"`
+	StorageUsage  int    `json:"storage_usage"`
+}
+
+func (a *Account) GetBalance(accountId string) (string, error) {
+	config, err := a.getRuntimeConfig()
+	if err != nil {
+		return "", err
+	}
+
+	va, err := a.AccountView(accountId)
+	if err != nil {
+		return "", err
+	}
+
+	costPerByte, err := decimal.NewFromString(config.RuntimeConfig.StorageAmountPerByte)
+	if err != nil {
+		return "", err
+	}
+
+	stateStaked := decimal.NewFromInt(int64(va.StorageUsage)).Mul(costPerByte)
+	staked, err := decimal.NewFromString(va.Locked)
+	if err != nil {
+		return "", err
+	}
+
+	amount, err := decimal.NewFromString(va.Amount)
+	if err != nil {
+		return "", err
+	}
+
+	totalBalance := amount.Add(staked)
+	availableBalance := totalBalance.Sub(decimal.Max(staked, stateStaked))
+
+	return availableBalance.String(), nil
+}
+
+// ViewFunction calls the provided contract method as a readonly function
+func (a *Account) AccountView(accountId string) (VeiwAccount, error) {
+
+	rpcQueryMap := map[string]interface{}{
+		"request_type": "view_account",
+		"account_id":   accountId,
+		"finality":     "final",
+	}
+	va := VeiwAccount{}
+
+	res, err := a.conn.Call("query", rpcQueryMap)
+	if err != nil {
+		return va, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return va, ErrNotObject
+	}
+
+	if err := mapstructure.Decode(res, &va); err != nil {
+		return va, fmt.Errorf("convert map=%+v to viewAccount meet err=%+v", r, err)
+	}
+
+	return va, nil
+}
+
+type RuntimeConfig struct {
+	RuntimeConfig struct {
+		StorageAmountPerByte string `json:"storage_amount_per_byte"`
+	} `json:"runtime_config"`
+}
+
+func (a *Account) getRuntimeConfig() (RuntimeConfig, error) {
+
+	rpcQueryMap := map[string]interface{}{
+		"finality": "final",
+	}
+	rc := RuntimeConfig{}
+
+	res, err := a.conn.Call("EXPERIMENTAL_protocol_config", rpcQueryMap)
+	if err != nil {
+		return rc, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return rc, ErrNotObject
+	}
+
+	if err := mapstructure.Decode(res, &rc); err != nil {
+		return rc, fmt.Errorf("convert map=%+v to runtimeConfig meet err=%+v", r, err)
+	}
+
+	return rc, nil
 }

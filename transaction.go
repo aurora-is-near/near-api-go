@@ -135,17 +135,26 @@ func createTransaction(
 	return &tx
 }
 
+func GetTransactionBytesMsg(tx *Transaction) (*[32]byte, error) {
+	buf, err := borsh.Serialize(*tx)
+	if err != nil {
+		return nil, err
+	}
+
+	hash := sha256.Sum256(buf)
+	return &hash, nil
+}
+
 func signTransactionObject(
 	tx *Transaction,
 	privKey ed25519.PrivateKey,
 	accountID string,
 ) (txHash []byte, signedTx *SignedTransaction, err error) {
-	buf, err := borsh.Serialize(*tx)
+
+	hash, err := GetTransactionBytesMsg(tx)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	hash := sha256.Sum256(buf)
 
 	sig, err := privKey.Sign(rand.Reader, hash[:], crypto.Hash(0))
 	if err != nil {
