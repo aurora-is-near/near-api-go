@@ -11,7 +11,9 @@ import (
 	"github.com/aurora-is-near/near-api-go/keystore"
 	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/mitchellh/mapstructure"
 	"github.com/near/borsh-go"
+	"github.com/shopspring/decimal"
 )
 
 const ed25519Prefix = "ed25519:"
@@ -334,22 +336,100 @@ func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, opt
 	return r, nil
 }
 
+type VeiwAccount struct {
+	Amount        string `json:"amount"`
+	BlockHash     string `json:"block_hash"`
+	BlockHeight   int    `json:"block_height"`
+	CodeHash      string `json:"code_hash"`
+	Locked        string `json:"locked"`
+	StoragePaidAt int    `json:"storage_paid_at"`
+	StorageUsage  int    `json:"storage_usage"`
+}
+
+func (a *Account) GetBalance(accountId string) (string, error) {
+	config, err := a.getRuntimeConfig()
+	if err != nil {
+		return "", err
+	}
+
+	va, err := a.AccountView(accountId)
+	if err != nil {
+		return "", err
+	}
+
+	costPerByte, err := decimal.NewFromString(config.RuntimeConfig.StorageAmountPerByte)
+	if err != nil {
+		return "", err
+	}
+
+	stateStaked := decimal.NewFromInt(int64(va.StorageUsage)).Mul(costPerByte)
+	staked, err := decimal.NewFromString(va.Locked)
+	if err != nil {
+		return "", err
+	}
+
+	amount, err := decimal.NewFromString(va.Amount)
+	if err != nil {
+		return "", err
+	}
+
+	totalBalance := amount.Add(staked)
+	availableBalance := totalBalance.Sub(decimal.Max(staked, stateStaked))
+
+	return availableBalance.String(), nil
+}
+
 // ViewFunction calls the provided contract method as a readonly function
-func (a *Account) AccountView(accountId string) (interface{}, error) {
+func (a *Account) AccountView(accountId string) (VeiwAccount, error) {
 
 	rpcQueryMap := map[string]interface{}{
 		"request_type": "view_account",
 		"account_id":   accountId,
 		"finality":     "final",
 	}
+	va := VeiwAccount{}
 
 	res, err := a.conn.Call("query", rpcQueryMap)
 	if err != nil {
-		return nil, err
+		return va, err
 	}
 	r, ok := res.(map[string]interface{})
 	if !ok {
-		return nil, ErrNotObject
+		return va, ErrNotObject
 	}
-	return r, nil
+
+	if err := mapstructure.Decode(res, &va); err != nil {
+		return va, fmt.Errorf("convert map=%+v to viewAccount meet err=%+v", r, err)
+	}
+
+	return va, nil
+}
+
+type RuntimeConfig struct {
+	RuntimeConfig struct {
+		StorageAmountPerByte string `json:"storage_amount_per_byte"`
+	} `json:"runtime_config"`
+}
+
+func (a *Account) getRuntimeConfig() (RuntimeConfig, error) {
+
+	rpcQueryMap := map[string]interface{}{
+		"finality": "final",
+	}
+	rc := RuntimeConfig{}
+
+	res, err := a.conn.Call("EXPERIMENTAL_protocol_config", rpcQueryMap)
+	if err != nil {
+		return rc, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return rc, ErrNotObject
+	}
+
+	if err := mapstructure.Decode(res, &rc); err != nil {
+		return rc, fmt.Errorf("convert map=%+v to runtimeConfig meet err=%+v", r, err)
+	}
+
+	return rc, nil
 }
