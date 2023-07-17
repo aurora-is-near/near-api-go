@@ -6,7 +6,7 @@ import (
 )
 
 // GetResult is the function type used for ExponentialBackoff.
-type GetResult func() (map[string]interface{}, error)
+type GetResult func() ([]byte, error)
 
 // ExponentialBackoff implements an exponential backoff strategy for calling
 // function fn.
@@ -14,12 +14,12 @@ func ExponentialBackoff(
 	startWaitTime, retryNumber int,
 	waitBackoff float64,
 	fn GetResult,
-) (map[string]interface{}, error) {
+) ([]byte, error) {
 	waitTime := startWaitTime
 	for i := 0; i < retryNumber; i++ {
-		res, err := fn()
+		buf, err := fn()
 		if err == nil {
-			return res, nil
+			return buf, nil
 		}
 		// print error and continue
 		fmt.Println(err)
