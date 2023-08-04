@@ -16,7 +16,7 @@ import (
 
 const ed25519Prefix = "ed25519:"
 
-// Ed25519KeyPair is a Ed25519 key pair.
+// Ed25519KeyPair is an Ed25519 key pair.
 type Ed25519KeyPair struct {
 	AccountID      string             `json:"account_id"`
 	PublicKey      string             `json:"public_key"`
@@ -61,9 +61,10 @@ func (kp *Ed25519KeyPair) Write(networkID string) (string, error) {
 	return filename, kp.write(filename)
 }
 
-// LoadKeyPair reads the Ed25519 key pair for the given ccountID from path
+// LoadKeyPairFromPath reads the Ed25519 key pair for the given ccountID from path
 // returns it.
 func LoadKeyPairFromPath(path, accountID string) (*Ed25519KeyPair, error) {
+
 	buf, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -109,15 +110,4 @@ func LoadKeyPairFromPath(path, accountID string) (*Ed25519KeyPair, error) {
 		return nil, fmt.Errorf("keystore: public_key does not match private_key: %s", path)
 	}
 	return &kp, nil
-}
-
-// LoadKeyPair reads the Ed25519 key pair for the given networkID and
-// accountID from the unencrypted file system key store and returns it.
-func LoadKeyPair(networkID, accountID string) (*Ed25519KeyPair, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	filename := filepath.Join(home, ".near-credentials", networkID, accountID+".json")
-	return LoadKeyPairFromPath(filename, accountID)
 }
