@@ -1,3 +1,5 @@
+# JetBrains IDEs
+.idea/*
 ./idea/
 ./idea/*
 ./idea/**

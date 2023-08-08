@@ -7,9 +7,10 @@ import (
 
 // A Config for the NEAR network.
 type Config struct {
-	NetworkID string
-	NodeURL   string
-	KeyPath   string
+	NetworkID                string
+	NodeURL                  string
+	KeyPath                  string
+	FunctionKeyPrefixPattern string
 }
 
 var home string
