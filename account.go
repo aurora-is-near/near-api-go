@@ -563,3 +563,19 @@ func getFunctionCallKeyPairFilePaths(path, prefixPattern string) []string {
 func (a *Account) ViewAccessKey(publicKey string) (map[string]interface{}, error) {
 	return a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
 }
+
+func (a *Account) ViewNonce(publicKey string) (uint64, error) {
+	ak, err := a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
+	if err != nil {
+		return 0, err
+	}
+	if jsonNonce, ok := ak["nonce"].(json.Number); !ok {
+		return 0, err
+	} else {
+		n, err := jsonNonce.Int64()
+		if err != nil {
+			return 0, err
+		}
+		return uint64(n), nil
+	}
+}
