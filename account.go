@@ -202,6 +202,31 @@ func (a *Account) SignAndSendTransactionWithKey(
 	return a.conn.SendTransaction(buf)
 }
 
+// SignAndSendTransactionWithKeyAndNonce signs the given actions and sends them as a transaction to receiverID.
+func (a *Account) SignAndSendTransactionWithKeyAndNonce(
+	receiverID string,
+	publicKey string,
+	nonce uint64,
+	actions []Action,
+) (map[string]interface{}, error) {
+	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
+		func() ([]byte, error) {
+			_, signedTx, err := a.signTransactionWithKeyAndNonce(receiverID, publicKey, nonce, actions)
+			if err != nil {
+				return nil, err
+			}
+			buf, err := borsh.Serialize(*signedTx)
+			if err != nil {
+				return nil, err
+			}
+			return buf, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return a.conn.SendTransaction(buf)
+}
+
 // SignAndSendTransactionAsync signs the given actions and sends it immediately
 func (a *Account) SignAndSendTransactionAsync(
 	receiverID string,
@@ -311,6 +336,25 @@ func (a *Account) signTransactionWithKey(
 
 }
 
+func (a *Account) signTransactionWithKeyAndNonce(
+	receiverID string,
+	publicKey string,
+	nonce uint64,
+	actions []Action,
+) ([]byte, *SignedTransaction, error) {
+
+	// get current block hash
+	block, err := a.conn.Block()
+	if err != nil {
+		return nil, nil, err
+	}
+	blockHash := block["header"].(map[string]interface{})["hash"].(string)
+
+	// sign transaction
+	return signTransaction(receiverID, nonce, actions, base58.Decode(blockHash),
+		a.funcCallKeyPairs[publicKey].Ed25519PubKey, a.funcCallKeyPairs[publicKey].Ed25519PrivKey, a.funcCallKeyPairs[publicKey].AccountID)
+}
+
 func (a *Account) findAccessKey() (publicKey ed25519.PublicKey, accessKey map[string]interface{}, err error) {
 	// TODO: Find matching access key based on transaction
 	// TODO: use accountId and networkId?
@@ -382,6 +426,33 @@ func (a *Account) FunctionCallWithMultiActionAndKey(
 		})
 	}
 	return a.SignAndSendTransactionWithKey(contractID, publicKey, actions)
+}
+
+// FunctionCallWithMultiActionAndKeyAndNonce performs a NEAR function call for multiple actions with specific access key
+// and nonce.
+func (a *Account) FunctionCallWithMultiActionAndKeyAndNonce(
+	contractID string,
+	methodName string,
+	publicKey string,
+	argsSlice [][]byte,
+	gas uint64,
+	nonce uint64,
+	amount big.Int,
+) (map[string]interface{}, error) {
+
+	actions := make([]Action, 0)
+	for _, args := range argsSlice {
+		actions = append(actions, Action{
+			Enum: 2,
+			FunctionCall: FunctionCall{
+				MethodName: methodName,
+				Args:       args,
+				Gas:        gas,
+				Deposit:    amount,
+			},
+		})
+	}
+	return a.SignAndSendTransactionWithKeyAndNonce(contractID, publicKey, nonce, actions)
 }
 
 // FunctionCallAsync performs an async NEAR function call.
@@ -487,4 +558,24 @@ func getFunctionCallKeyPairFilePaths(path, prefixPattern string) []string {
 		keyPairFiles = append(keyPairFiles, files...)
 	}
 	return keyPairFiles
+}
+
+func (a *Account) ViewAccessKey(publicKey string) (map[string]interface{}, error) {
+	return a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
+}
+
+func (a *Account) ViewNonce(publicKey string) (uint64, error) {
+	ak, err := a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
+	if err != nil {
+		return 0, err
+	}
+	if jsonNonce, ok := ak["nonce"].(json.Number); !ok {
+		return 0, err
+	} else {
+		n, err := jsonNonce.Int64()
+		if err != nil {
+			return 0, err
+		}
+		return uint64(n), nil
+	}
 }
