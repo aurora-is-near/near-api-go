@@ -4,14 +4,15 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/aurora-is-near/near-api-go/keystore"
-	"github.com/aurora-is-near/near-api-go/utils"
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/near/borsh-go"
 	"math/big"
 	"path/filepath"
 	"strconv"
 	"sync"
+
+	"github.com/aurora-is-near/near-api-go/keystore"
+	"github.com/aurora-is-near/near-api-go/utils"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/near/borsh-go"
 )
 
 // Default number of retries with different nonce before giving up on a transaction.
@@ -107,6 +108,40 @@ func (a *Account) SendMoney(
 			},
 		},
 	})
+}
+
+// AddKeys adds the given publicKeys to the account with full access.
+func (a *Account) AddKeys(
+	publicKeys ...utils.PublicKey,
+) (map[string]interface{}, error) {
+	fullAccessKey := fullAccessKey()
+	actions := make([]Action, 0)
+	for _, pk := range publicKeys {
+		actions = append(actions, Action{
+			Enum: 5,
+			AddKey: AddKey{
+				PublicKey: pk,
+				AccessKey: fullAccessKey,
+			},
+		})
+	}
+	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, actions)
+}
+
+// DeleteKeys deletes the given publicKeys from the account.
+func (a *Account) DeleteKeys(
+	publicKeys ...utils.PublicKey,
+) (map[string]interface{}, error) {
+	actions := make([]Action, 0)
+	for _, pk := range publicKeys {
+		actions = append(actions, Action{
+			Enum: 6,
+			DeleteKey: DeleteKey{
+				PublicKey: pk,
+			},
+		})
+	}
+	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, actions)
 }
 
 // CreateAccount creates the newAccountID with the given publicKey and amount.
