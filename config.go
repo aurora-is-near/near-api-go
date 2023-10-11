@@ -48,7 +48,10 @@ func GetConfig() *Config {
 	case "development":
 		fallthrough
 	case "testnet":
-		fallthrough
+		return &Config{
+			NetworkID: "testnet",
+			NodeURL:   "https://rpc.testnet.near.org",
+		}
 	default:
 		return &Config{
 			NetworkID: "default",
