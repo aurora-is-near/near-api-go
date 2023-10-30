@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/aurora-is-near/near-api-go/keystore"
 	"github.com/aurora-is-near/near-api-go/utils"
@@ -186,14 +187,42 @@ func (a *Account) DeleteAccount(
 	})
 }
 
+func (a *Account) SendTransactionWithAsyncRetry(transaction []byte, hash []byte) (map[string]interface{}, error) {
+	result, err := a.conn.SendTransaction(transaction)
+	if err == nil {
+		return result, nil
+	}
+
+	// Retry async if timeout happened
+	_, err = a.conn.SendTransactionAsync(transaction)
+
+	retriesNumber := 5
+	waitTime := 10 * time.Second
+	for i := 0; i < retriesNumber; i++ {
+		time.Sleep(waitTime)
+		waitTime = waitTime / 2
+
+		status, err := a.conn.GetTransactionStatus(a.fullAccessKeyPair.AccountID, hash)
+		if err != nil {
+			continue
+		}
+
+		if len(status["receipts_outcome"].([]interface{})) > 0 {
+			return status, err
+		}
+	}
+	return nil, ErrNotObject
+}
+
 // SignAndSendTransaction signs the given actions and sends them as a transaction to receiverID.
 func (a *Account) SignAndSendTransaction(
 	receiverID string,
 	actions []Action,
 ) (map[string]interface{}, error) {
+	var transactionHash []byte
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
-			_, signedTx, err := a.signTransaction(receiverID, actions)
+			hash, signedTx, err := a.signTransaction(receiverID, actions)
 			if err != nil {
 				return nil, err
 			}
@@ -202,13 +231,13 @@ func (a *Account) SignAndSendTransaction(
 			if err != nil {
 				return nil, err
 			}
+			transactionHash = hash
 			return buf, nil
-
 		})
 	if err != nil {
 		return nil, err
 	}
-	return a.conn.SendTransaction(buf)
+	return a.SendTransactionWithAsyncRetry(buf, transactionHash)
 }
 
 // SignAndSendTransactionWithKey signs the given actions and sends them as a transaction to receiverID.

@@ -109,6 +109,23 @@ func (c *Connection) GetAccountState(accountID string) (map[string]interface{}, 
 	return r, nil
 }
 
+func (c *Connection) GetTransactionStatus(accountID string, transactionHash []byte) (map[string]interface{}, error) {
+	// Encode transaction hash to base64
+	hash := base64.StdEncoding.EncodeToString(transactionHash)
+
+	res, err := c.call("tx", []string{
+		hash, accountID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
+
 // GetContractCode returns the contract code (Wasm binary) deployed to the account.
 //
 // For details see
