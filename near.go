@@ -56,6 +56,12 @@ func (c *Connection) call(method string, params ...interface{}) (interface{}, er
 	return res.Result, nil
 }
 
+// Call uses the connection c to call the given method with params.
+// It handles all possible error cases and returns the result (which cannot be nil).
+func (c *Connection) Call(method string, params ...interface{}) (interface{}, error) {
+	return c.call(method, params...)
+}
+
 // Block queries network and returns latest block.
 //
 // For details see https://docs.near.org/docs/interaction/rpc#block
