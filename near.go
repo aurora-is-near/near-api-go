@@ -207,6 +207,26 @@ func (c *Connection) ViewAccessKeyList(accountID string) (map[string]interface{}
 	return r, nil
 }
 
+// GetTransaction returns information about a single transaction.
+//
+// For details see
+// https://docs.near.org/api/rpc/transactions#transaction-status
+func (c *Connection) GetTransactionDetails(txHash, senderAccountId string) (map[string]interface{}, error) {
+	params := []interface{}{txHash, senderAccountId}
+
+	res, err := c.call("tx", params)
+	if err != nil {
+		return nil, err
+	}
+
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+
+	return r, nil
+}
+
 // GetTransactionLastResult decodes the last transaction result from a JSON
 // map and tries to deterimine if we have an error condition.
 func GetTransactionLastResult(txResult map[string]interface{}) (interface{}, error) {
