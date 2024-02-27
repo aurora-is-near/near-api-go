@@ -207,7 +207,7 @@ func (c *Connection) ViewAccessKeyList(accountID string) (map[string]interface{}
 	return r, nil
 }
 
-// GetTransaction returns information about a single transaction.
+// GetTransactionDetails returns information about a single transaction.
 //
 // For details see
 // https://docs.near.org/api/rpc/transactions#transaction-status
@@ -215,6 +215,26 @@ func (c *Connection) GetTransactionDetails(txHash, senderAccountId string) (map[
 	params := []interface{}{txHash, senderAccountId}
 
 	res, err := c.call("tx", params)
+	if err != nil {
+		return nil, err
+	}
+
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+
+	return r, nil
+}
+
+// GetTransactionDetailsWithReceipts returns information about a single transaction with receipts
+//
+// For details see
+// https://docs.near.org/api/rpc/transactions#transaction-status-with-receipts
+func (c *Connection) GetTransactionDetailsWithReceipts(txHash, senderAccountId string) (map[string]interface{}, error) {
+	params := []interface{}{txHash, senderAccountId}
+
+	res, err := c.call("EXPERIMENTAL_tx_status", params)
 	if err != nil {
 		return nil, err
 	}
