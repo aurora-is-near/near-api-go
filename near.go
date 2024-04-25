@@ -73,6 +73,40 @@ func (c *Connection) Block() (map[string]interface{}, error) {
 	return r, nil
 }
 
+// Block with given blockHash queries network and returns block with given hash.
+//
+// For details see https://docs.near.org/api/rpc/block-chunk#block-details
+func (c *Connection) GetBlockByHash(blockHash string) (map[string]interface{}, error) {
+	res, err := c.call("block", map[string]string{
+		"block_id": blockHash,
+	})
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
+
+// Block with given blockId queries network and returns block with given ID.
+//
+// For details see https://docs.near.org/api/rpc/block-chunk#block-details
+func (c *Connection) GetBlockByID(blockID uint64) (map[string]interface{}, error) {
+	res, err := c.call("block", map[string]interface{}{
+		"block_id": blockID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+	return r, nil
+}
+
 // GetNodeStatus returns general status of a given node.
 //
 // For details see
