@@ -23,7 +23,7 @@ const (
 var bigRadix = big.NewInt(58)
 var bigZero = big.NewInt(0)
 
-// encode encodes a byte slice to a modified base58 string. Lifted from github.com/btcsuite/btcutil/base58.
+// encode encodes a byte slice to a modified base58 string. Lifted from github.com/btcsuite/btcd/btcutil/base58.
 func encode58(b []byte) string {
 	x := new(big.Int)
 	x.SetBytes(b)

@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/aurora-is-near/near-api-go"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/davecgh/go-spew/spew"
 )
 

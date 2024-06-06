@@ -11,7 +11,7 @@ import (
 
 	"github.com/aurora-is-near/near-api-go/keystore"
 	"github.com/aurora-is-near/near-api-go/utils"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/near/borsh-go"
 )
 
