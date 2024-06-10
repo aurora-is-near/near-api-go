@@ -9,12 +9,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/btcsuite/btcd/btcutil/base58"
+	"github.com/aurora-is-near/near-api-go/utils"
 )
-
-const ed25519Prefix = "ed25519:"
 
 // Ed25519KeyPair is an Ed25519 key pair.
 type Ed25519KeyPair struct {
@@ -28,18 +25,23 @@ type Ed25519KeyPair struct {
 
 // GenerateEd25519KeyPair generates a new Ed25519 key pair for accountID.
 func GenerateEd25519KeyPair(accountID string) (*Ed25519KeyPair, error) {
-	var (
-		kp  Ed25519KeyPair
-		err error
-	)
-	kp.Ed25519PubKey, kp.Ed25519PrivKey, err = ed25519.GenerateKey(rand.Reader)
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
 	}
-	kp.AccountID = accountID
-	kp.PublicKey = ed25519Prefix + base58.Encode(kp.Ed25519PubKey)
-	kp.PrivateKey = ed25519Prefix + base58.Encode(kp.Ed25519PrivKey)
-	return &kp, nil
+	return KeyPairFromPrivateKey(accountID, privateKey), nil
+}
+
+// KeyPairFromPrivateKey creates a key-pair given an accountID and a private key.
+func KeyPairFromPrivateKey(accountID string, privateKey ed25519.PrivateKey) *Ed25519KeyPair {
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	return &Ed25519KeyPair{
+		AccountID:      accountID,
+		Ed25519PubKey:  publicKey,
+		Ed25519PrivKey: privateKey,
+		PublicKey:      utils.Ed25519PublicKeyToString(publicKey),
+		PrivateKey:     utils.Ed25519PrivateKeyToString(privateKey),
+	}
 }
 
 func (kp *Ed25519KeyPair) write(filename string) error {
@@ -80,33 +82,29 @@ func LoadKeyPairFromPath(path, accountID string) (*Ed25519KeyPair, error) {
 			kp.AccountID, accountID)
 	}
 	// public key
-	if !strings.HasPrefix(kp.PublicKey, ed25519Prefix) {
-		return nil, fmt.Errorf("keystore: parsed public_key '%s' is not an Ed25519 key",
-			kp.PublicKey)
+	kp.Ed25519PubKey, err = utils.Ed25519PublicKeyFromString(kp.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("keystore: invalid public_key: %w", err)
 	}
-	pubKey := base58.Decode(strings.TrimPrefix(kp.PublicKey, ed25519Prefix))
-	kp.Ed25519PubKey = ed25519.PublicKey(pubKey)
 	// private key
-	var privateKey []byte
+	var privateKey ed25519.PrivateKey
 	if len(kp.PrivateKey) > 0 && len(kp.SecretKey) > 0 {
 		return nil, fmt.Errorf("keystore: private_key and secret_key are defined at the same time: %s", path)
 	} else if len(kp.PrivateKey) > 0 {
-		if !strings.HasPrefix(kp.PrivateKey, ed25519Prefix) {
-			return nil, fmt.Errorf("keystore: parsed private_key '%s' is not an Ed25519 key",
-				kp.PrivateKey)
+		privateKey, err = utils.Ed25519PrivateKeyFromString(kp.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("keystore: invalid private_key: %w", err)
 		}
-		privateKey = base58.Decode(strings.TrimPrefix(kp.PrivateKey, ed25519Prefix))
 	} else { // secret_key
-		if !strings.HasPrefix(kp.SecretKey, ed25519Prefix) {
-			return nil, fmt.Errorf("keystore: parsed secret_key '%s' is not an Ed25519 key",
-				kp.SecretKey)
+		privateKey, err = utils.Ed25519PrivateKeyFromString(kp.SecretKey)
+		if err != nil {
+			return nil, fmt.Errorf("keystore: invalid secret_key: %w", err)
 		}
-		privateKey = base58.Decode(strings.TrimPrefix(kp.SecretKey, ed25519Prefix))
 	}
-	kp.Ed25519PrivKey = ed25519.PrivateKey(privateKey)
+	kp.Ed25519PrivKey = privateKey
 
 	// make sure keys match
-	if !bytes.Equal(pubKey, kp.Ed25519PrivKey.Public().(ed25519.PublicKey)) {
+	if !bytes.Equal(kp.Ed25519PubKey, kp.Ed25519PrivKey.Public().(ed25519.PublicKey)) {
 		return nil, fmt.Errorf("keystore: public_key does not match private_key: %s", path)
 	}
 	return &kp, nil

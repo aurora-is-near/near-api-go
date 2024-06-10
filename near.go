@@ -56,6 +56,12 @@ func (c *Connection) call(method string, params ...interface{}) (interface{}, er
 	return res.Result, nil
 }
 
+// Call performs a generic call of the given NEAR JSON-RPC method with params.
+// It handles all possible error cases and returns the result (which cannot be nil).
+func (c *Connection) Call(method string, params ...interface{}) (interface{}, error) {
+	return c.call(method, params...)
+}
+
 // Block queries network and returns latest block.
 //
 // For details see https://docs.near.org/docs/interaction/rpc#block
@@ -247,6 +253,30 @@ func (c *Connection) ViewAccessKeyList(accountID string) (map[string]interface{}
 // https://docs.near.org/api/rpc/transactions#transaction-status
 func (c *Connection) GetTransactionDetails(txHash, senderAccountId string) (map[string]interface{}, error) {
 	params := []interface{}{txHash, senderAccountId}
+
+	res, err := c.call("tx", params)
+	if err != nil {
+		return nil, err
+	}
+
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+
+	return r, nil
+}
+
+// GetTransactionDetailsWithWait returns information about a single transaction after waiting for the specified execution status.
+//
+// For details see
+// https://docs.near.org/api/rpc/transactions#transaction-status
+func (c *Connection) GetTransactionDetailsWithWait(txHash, senderAccountId string, waitUntil TxExecutionStatus) (map[string]interface{}, error) {
+	params := map[string]interface{}{
+		"tx_hash":           txHash,
+		"sender_account_id": senderAccountId,
+		"wait_until":        waitUntil,
+	}
 
 	res, err := c.call("tx", params)
 	if err != nil {

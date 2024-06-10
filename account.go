@@ -24,7 +24,9 @@ const txNonceRetryWait = 500
 // Exponential back off for waiting to retry.
 const txNonceRetryWaitBackoff = 1.5
 
-// Account defines access credentials for a NEAR account.
+// Account defines functions to work with a NEAR account.
+// Keeps a connection to NEAR JSON-RPC, the account's access keys, and maintains a
+// local cache of nonces per account's access key.
 type Account struct {
 
 	// NEAR JSON-RPC connection
@@ -43,9 +45,8 @@ type Account struct {
 	accessKeyByPublicKeyCache map[string]map[string]interface{}
 }
 
-// LoadAccount loads the credential for the receiverID account, to be used via
-// connection c, and returns it.
-func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error) {
+// LoadAccount initializes an Account object by loading the account credentials from disk.
+func LoadAccount(c *Connection, cfg *Config, accountID string) (*Account, error) {
 	var (
 		a       Account
 		err     error
@@ -59,11 +60,11 @@ func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error
 	path := cfg.KeyPath
 	if path == "" {
 		// set default path if not defined in config
-		path = filepath.Join(home, ".near-credentials", cfg.NetworkID, receiverID+".json")
+		path = filepath.Join(home, ".near-credentials", cfg.NetworkID, accountID+".json")
 	}
 
 	// set full access key first
-	a.fullAccessKeyPair, err = keystore.LoadKeyPairFromPath(path, receiverID)
+	a.fullAccessKeyPair, err = keystore.LoadKeyPairFromPath(path, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error
 	// set function call keys if any
 	keyPairFilePaths := getFunctionCallKeyPairFilePaths(path, cfg.FunctionKeyPrefixPattern)
 	for _, p := range keyPairFilePaths {
-		keyPair, err = keystore.LoadKeyPairFromPath(p, receiverID)
+		keyPair, err = keystore.LoadKeyPairFromPath(p, accountID)
 		if err != nil {
 			return nil, err
 		}
@@ -80,6 +81,31 @@ func LoadAccount(c *Connection, cfg *Config, receiverID string) (*Account, error
 	}
 
 	return &a, nil
+}
+
+// LoadAccountWithKeyPair initializes an Account object given its access key pair.
+func LoadAccountWithKeyPair(c *Connection, keyPair *keystore.Ed25519KeyPair) *Account {
+	return &Account{
+		conn:              c,
+		fullAccessKeyPair: keyPair,
+		funcCallKeyPairs: map[string]*keystore.Ed25519KeyPair{
+			keyPair.PublicKey: keyPair,
+		},
+		funcCallKeyMutexes: map[string]*sync.Mutex{
+			keyPair.PublicKey: {},
+		},
+		accessKeyByPublicKeyCache: make(map[string]map[string]interface{}),
+	}
+}
+
+// LoadAccountWithPrivateKey initializes an Account object given its accountID and a private key.
+func LoadAccountWithPrivateKey(c *Connection, accountID string, privateKey ed25519.PrivateKey) *Account {
+	return LoadAccountWithKeyPair(c, keystore.KeyPairFromPrivateKey(accountID, privateKey))
+}
+
+// AccountID returns sender account ID
+func (a *Account) AccountID() string {
+	return a.fullAccessKeyPair.AccountID
 }
 
 // GetVerifiedAccessKeys verifies and returns the public keys of the access keys
