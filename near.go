@@ -38,7 +38,7 @@ func NewConnectionWithOTLPTracing(nodeURL string, timeout time.Duration) *Connec
 				Transport: otelhttp.NewTransport(
 					http.DefaultTransport,
 					otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-						return "near-api-go.json-rpc." + operation
+						return "near-api-go.json-rpc-http"
 					}),
 				),
 			},
