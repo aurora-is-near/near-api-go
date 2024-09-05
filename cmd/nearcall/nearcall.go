@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"flag"
 	"fmt"
@@ -41,7 +42,7 @@ func GoCall(network, accountID, contract, method, argfile string) (string, inter
 	if err != nil {
 		return arghash, nil, err
 	}
-	resp, err := account.FunctionCall(contract, method, args, 100_000_000_000_000, *(big.NewInt(0)))
+	resp, err := account.FunctionCall(context.Background(), contract, method, args, 100_000_000_000_000, *(big.NewInt(0)))
 	if err != nil {
 		return arghash, nil, err
 	}
