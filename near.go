@@ -34,8 +34,13 @@ func NewConnectionWithOTLPTracing(nodeURL string, timeout time.Duration) *Connec
 		OTLPEnabled: true,
 		c: jsonrpc.NewClientWithOpts(nodeURL, &jsonrpc.RPCClientOpts{
 			HTTPClient: &http.Client{
-				Timeout:   timeout,
-				Transport: otelhttp.NewTransport(http.DefaultTransport),
+				Timeout: timeout,
+				Transport: otelhttp.NewTransport(
+					http.DefaultTransport,
+					otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+						return "near-api-go.json-rpc." + operation
+					}),
+				),
 			},
 		}),
 	}
@@ -61,7 +66,7 @@ func (c *Connection) call(ctx context.Context, method string, params ...interfac
 		ctx, span = otel.GetTracerProvider().Tracer("near-api-go").
 			Start(
 				ctx,
-				method,
+				"near-api-go."+method,
 				trace.WithSpanKind(trace.SpanKindInternal),
 				trace.WithAttributes(
 					attribute.String("method", method),
