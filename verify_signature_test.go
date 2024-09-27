@@ -64,6 +64,24 @@ func TestVerifySignature(t *testing.T) {
 		t.Fatalf("Failed to verify signature: %v", err)
 	}
 	if !isValid {
-		t.Fatal("Signature should be valid for a different public key")
+		t.Fatal("Signature should be valid for the given public key")
+	}
+}
+
+func TestVerifySignaturePrecomputed(t *testing.T) {
+	message := "+16005551111evm.test-account.testnet"
+	pubKey := "86fd8e75c00c88ad489b3c0c7dd8d13ef0953d4b03788acb05b281b2acd2bf86"
+	signature := "a45ea2a6999a69b35a8a9fc3eb60f2440c1d4f7a45641eb81f309a27dbd0342258159d99cd4f322deec8f028214e72072480c9d145b25d5f0f0f3df8f8f9c30b"
+
+	// Convert message to hex
+	messageHex := hex.EncodeToString([]byte(message))
+
+	// Verify the signature
+	isValid, err := VerifySignatureHex(pubKey, signature, messageHex)
+	if err != nil {
+		t.Fatalf("Failed to verify signature: %v", err)
+	}
+	if !isValid {
+		t.Fatal("Signature should be valid for the given public key")
 	}
 }
