@@ -3,6 +3,7 @@ package near
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 
 	"github.com/aurora-is-near/near-api-go/types"
@@ -41,4 +42,31 @@ func VerifyTransactionSignature(signedTx *types.SignedTransaction) (bool, error)
 	}
 
 	return true, nil
+}
+
+// Verify signature of a given public key and signature
+func VerifySignatureBytes(publicKey []byte, signature []byte, message []byte) (bool, error) {
+	pubKey := types.PublicKey{}
+	pubKey.FromEd25519(publicKey)
+
+	signatureData := signature[:]
+	if len(signatureData) != ed25519.SignatureSize {
+		return false, errors.New("invalid signature size")
+	}
+
+	hash := sha256.Sum256(message)
+	return ed25519.Verify(pubKey.ToEd25519(), hash[:], signatureData), nil
+}
+
+// Verify signature of a given public key and signature as a hex string
+func VerifySignatureHex(publicKeyHex string, signatureHex string, message []byte) (bool, error) {
+	publicKey, err := hex.DecodeString(publicKeyHex)
+	if err != nil {
+		return false, err
+	}
+	signature, err := hex.DecodeString(signatureHex)
+	if err != nil {
+		return false, err
+	}
+	return VerifySignatureBytes(publicKey, signature, message)
 }
