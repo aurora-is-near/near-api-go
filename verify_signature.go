@@ -59,12 +59,16 @@ func VerifySignatureBytes(publicKey []byte, signature []byte, message []byte) (b
 }
 
 // Verify signature of a given public key and signature as a hex string
-func VerifySignatureHex(publicKeyHex string, signatureHex string, message []byte) (bool, error) {
+func VerifySignatureHex(publicKeyHex string, signatureHex string, messageHex string) (bool, error) {
 	publicKey, err := hex.DecodeString(publicKeyHex)
 	if err != nil {
 		return false, err
 	}
 	signature, err := hex.DecodeString(signatureHex)
+	if err != nil {
+		return false, err
+	}
+	message, err := hex.DecodeString(messageHex)
 	if err != nil {
 		return false, err
 	}
