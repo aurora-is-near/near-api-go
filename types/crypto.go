@@ -19,14 +19,14 @@ type PublicKey struct {
 }
 
 
-func (pk *PublicKey) FromEd25519(edPk ed25519.PublicKey) {
-	pk.KeyType = ED25519
-	copy(pk.Data[:], edPk)
+func (pubKey *PublicKey) FromEd25519(edPk ed25519.PublicKey) {
+	pubKey.KeyType = ED25519
+	copy(pubKey.Data[:], edPk)
 }
 
 
-func (pk *PublicKey) ToEd25519() ed25519.PublicKey {
-	return ed25519.PublicKey(pk.Data[:])
+func (pubKey *PublicKey) ToEd25519() ed25519.PublicKey {
+	return ed25519.PublicKey(pubKey.Data[:])
 }
 
 // AccessKey encodes a NEAR access key.

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/aurora-is-near/near-api-go/types"
-	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/near/borsh-go"
 )
 
@@ -21,7 +20,7 @@ func TestSignedTransactionStruct(t *testing.T) {
 		t.Fatalf("Deserialization error: %v", err)
 	}
 
-	ok, err := utils.VerifyTransactionSignature(&signedTx)
+	ok, err := VerifyTransactionSignature(&signedTx)
 	if err != nil {
 		t.Fatal(err)
 	}

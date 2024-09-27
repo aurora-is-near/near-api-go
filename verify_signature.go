@@ -1,4 +1,4 @@
-package utils
+package near
 
 import (
 	"crypto/ed25519"
