@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/aurora-is-near/near-api-go/types"
+	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/near/borsh-go"
 )
 
@@ -14,8 +16,16 @@ func TestSignedTransactionStruct(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var signedTx SignedTransaction
+	var signedTx types.SignedTransaction
 	if err = borsh.Deserialize(&signedTx, buf); err != nil {
+		t.Fatalf("Deserialization error: %v", err)
+	}
+
+	ok, err := utils.VerifyTransactionSignature(&signedTx)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("signature is not valid")
 	}
 }
