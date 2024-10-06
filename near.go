@@ -29,6 +29,23 @@ func NewConnection(nodeURL string) *Connection {
 	return NewConnectionWithTimeout(nodeURL, 0)
 }
 
+func NewConnectionWithOTLPTracingAndTransport(nodeURL string, timeout time.Duration, transport *http.Transport) *Connection {
+	return &Connection{
+		OTLPEnabled: true,
+		c: jsonrpc.NewClientWithOpts(nodeURL, &jsonrpc.RPCClientOpts{
+			HTTPClient: &http.Client{
+				Timeout: timeout,
+				Transport: otelhttp.NewTransport(
+					transport,
+					otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+						return "near-api-go.json-rpc-http"
+					}),
+				),
+			},
+		}),
+	}
+}
+
 func NewConnectionWithOTLPTracing(nodeURL string, timeout time.Duration) *Connection {
 	return &Connection{
 		OTLPEnabled: true,
