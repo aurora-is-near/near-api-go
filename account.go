@@ -1,6 +1,7 @@
 package near
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
@@ -109,10 +110,10 @@ func (a *Account) AccountID() string {
 }
 
 // GetVerifiedAccessKeys verifies and returns the public keys of the access keys
-func (a *Account) GetVerifiedAccessKeys() []string {
+func (a *Account) GetVerifiedAccessKeys(ctx context.Context) []string {
 	accessKeys := make([]string, 0)
 	for k, v := range a.funcCallKeyPairs {
-		_, err := a.conn.ViewAccessKey(v.AccountID, k)
+		_, err := a.conn.ViewAccessKey(ctx, v.AccountID, k)
 		if err != nil {
 			continue
 		}
@@ -123,10 +124,11 @@ func (a *Account) GetVerifiedAccessKeys() []string {
 
 // SendMoney sends amount NEAR from account to receiverID.
 func (a *Account) SendMoney(
+	ctx context.Context,
 	receiverID string,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(receiverID, []Action{
+	return a.SignAndSendTransaction(ctx, receiverID, []Action{
 		{
 			Enum: 3,
 			Transfer: Transfer{
@@ -138,6 +140,7 @@ func (a *Account) SendMoney(
 
 // AddKeys adds the given publicKeys to the account with full access.
 func (a *Account) AddKeys(
+	ctx context.Context,
 	publicKeys ...utils.PublicKey,
 ) (map[string]interface{}, error) {
 	fullAccessKey := fullAccessKey()
@@ -151,11 +154,12 @@ func (a *Account) AddKeys(
 			},
 		})
 	}
-	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, actions)
+	return a.SignAndSendTransaction(ctx, a.fullAccessKeyPair.AccountID, actions)
 }
 
 // DeleteKeys deletes the given publicKeys from the account.
 func (a *Account) DeleteKeys(
+	ctx context.Context,
 	publicKeys ...utils.PublicKey,
 ) (map[string]interface{}, error) {
 	actions := make([]Action, 0)
@@ -167,16 +171,17 @@ func (a *Account) DeleteKeys(
 			},
 		})
 	}
-	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, actions)
+	return a.SignAndSendTransaction(ctx, a.fullAccessKeyPair.AccountID, actions)
 }
 
 // CreateAccount creates the newAccountID with the given publicKey and amount.
 func (a *Account) CreateAccount(
+	ctx context.Context,
 	newAccountID string,
 	publicKey utils.PublicKey,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(newAccountID, []Action{
+	return a.SignAndSendTransaction(ctx, newAccountID, []Action{
 		{
 			Enum:          0,
 			CreateAccount: 0,
@@ -200,9 +205,10 @@ func (a *Account) CreateAccount(
 // DeleteAccount deletes the account and sends the remaining Ⓝ balance to the
 // account beneficiaryID.
 func (a *Account) DeleteAccount(
+	ctx context.Context,
 	beneficiaryID string,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, []Action{
+	return a.SignAndSendTransaction(ctx, a.fullAccessKeyPair.AccountID, []Action{
 		{
 			Enum: 7,
 			DeleteAccount: DeleteAccount{
@@ -214,12 +220,13 @@ func (a *Account) DeleteAccount(
 
 // SignAndSendTransaction signs the given actions and sends them as a transaction to receiverID.
 func (a *Account) SignAndSendTransaction(
+	ctx context.Context,
 	receiverID string,
 	actions []Action,
 ) (map[string]interface{}, error) {
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
-			_, signedTx, err := a.signTransaction(receiverID, actions)
+			_, signedTx, err := a.signTransaction(ctx, receiverID, actions)
 			if err != nil {
 				return nil, err
 			}
@@ -234,18 +241,19 @@ func (a *Account) SignAndSendTransaction(
 	if err != nil {
 		return nil, err
 	}
-	return a.conn.SendTransaction(buf)
+	return a.conn.SendTransaction(ctx, buf)
 }
 
 // SignAndSendTransactionWithKey signs the given actions and sends them as a transaction to receiverID.
 func (a *Account) SignAndSendTransactionWithKey(
+	ctx context.Context,
 	receiverID string,
 	publicKey string,
 	actions []Action,
 ) (map[string]interface{}, error) {
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
-			_, signedTx, err := a.signTransactionWithKey(receiverID, publicKey, actions)
+			_, signedTx, err := a.signTransactionWithKey(ctx, receiverID, publicKey, actions)
 			if err != nil {
 				return nil, err
 			}
@@ -260,11 +268,12 @@ func (a *Account) SignAndSendTransactionWithKey(
 	if err != nil {
 		return nil, err
 	}
-	return a.conn.SendTransaction(buf)
+	return a.conn.SendTransaction(ctx, buf)
 }
 
 // SignAndSendTransactionWithKeyAndNonce signs the given actions and sends them as a transaction to receiverID.
 func (a *Account) SignAndSendTransactionWithKeyAndNonce(
+	ctx context.Context,
 	receiverID string,
 	publicKey string,
 	nonce uint64,
@@ -272,7 +281,7 @@ func (a *Account) SignAndSendTransactionWithKeyAndNonce(
 ) (map[string]interface{}, error) {
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
-			_, signedTx, err := a.signTransactionWithKeyAndNonce(receiverID, publicKey, nonce, actions)
+			_, signedTx, err := a.signTransactionWithKeyAndNonce(ctx, receiverID, publicKey, nonce, actions)
 			if err != nil {
 				return nil, err
 			}
@@ -285,15 +294,16 @@ func (a *Account) SignAndSendTransactionWithKeyAndNonce(
 	if err != nil {
 		return nil, err
 	}
-	return a.conn.SendTransaction(buf)
+	return a.conn.SendTransaction(ctx, buf)
 }
 
 // SignAndSendTransactionAsync signs the given actions and sends it immediately
 func (a *Account) SignAndSendTransactionAsync(
+	ctx context.Context,
 	receiverID string,
 	actions []Action,
 ) (string, error) {
-	_, signedTx, err := a.signTransaction(receiverID, actions)
+	_, signedTx, err := a.signTransaction(ctx, receiverID, actions)
 	if err != nil {
 		return "", err
 	}
@@ -302,16 +312,17 @@ func (a *Account) SignAndSendTransactionAsync(
 	if err != nil {
 		return "", err
 	}
-	return a.conn.SendTransactionAsync(buf)
+	return a.conn.SendTransactionAsync(ctx, buf)
 }
 
 // SignAndSendTransactionAsyncWithKey signs the given actions and sends it immediately
 func (a *Account) SignAndSendTransactionAsyncWithKey(
+	ctx context.Context,
 	receiverID string,
 	publicKey string,
 	actions []Action,
 ) (string, error) {
-	_, signedTx, err := a.signTransactionWithKey(receiverID, publicKey, actions)
+	_, signedTx, err := a.signTransactionWithKey(ctx, receiverID, publicKey, actions)
 	if err != nil {
 		return "", err
 	}
@@ -320,20 +331,21 @@ func (a *Account) SignAndSendTransactionAsyncWithKey(
 	if err != nil {
 		return "", err
 	}
-	return a.conn.SendTransactionAsync(buf)
+	return a.conn.SendTransactionAsync(ctx, buf)
 }
 
 func (a *Account) signTransaction(
+	ctx context.Context,
 	receiverID string,
 	actions []Action,
 ) (txHash []byte, signedTx *SignedTransaction, err error) {
-	_, ak, err := a.findAccessKey()
+	_, ak, err := a.findAccessKey(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// get current block hash
-	block, err := a.conn.Block()
+	block, err := a.conn.Block(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -360,18 +372,19 @@ func (a *Account) signTransaction(
 }
 
 func (a *Account) signTransactionWithKey(
+	ctx context.Context,
 	receiverID string,
 	publicKey string,
 	actions []Action,
 ) ([]byte, *SignedTransaction, error) {
 
-	ak, err := a.findAccessKeyWithPublicKey(publicKey)
+	ak, err := a.findAccessKeyWithPublicKey(ctx, publicKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// get current block hash
-	block, err := a.conn.Block()
+	block, err := a.conn.Block(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -398,6 +411,7 @@ func (a *Account) signTransactionWithKey(
 }
 
 func (a *Account) signTransactionWithKeyAndNonce(
+	ctx context.Context,
 	receiverID string,
 	publicKey string,
 	nonce uint64,
@@ -405,7 +419,7 @@ func (a *Account) signTransactionWithKeyAndNonce(
 ) ([]byte, *SignedTransaction, error) {
 
 	// get current block hash
-	block, err := a.conn.Block()
+	block, err := a.conn.Block(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -416,14 +430,14 @@ func (a *Account) signTransactionWithKeyAndNonce(
 		a.funcCallKeyPairs[publicKey].Ed25519PubKey, a.funcCallKeyPairs[publicKey].Ed25519PrivKey, a.funcCallKeyPairs[publicKey].AccountID)
 }
 
-func (a *Account) findAccessKey() (publicKey ed25519.PublicKey, accessKey map[string]interface{}, err error) {
+func (a *Account) findAccessKey(ctx context.Context) (publicKey ed25519.PublicKey, accessKey map[string]interface{}, err error) {
 	// TODO: Find matching access key based on transaction
 	// TODO: use accountId and networkId?
 	pk := a.fullAccessKeyPair.Ed25519PubKey
 	if ak := a.accessKeyByPublicKeyCache[string(publicKey)]; ak != nil {
 		return pk, ak, nil
 	}
-	ak, err := a.conn.ViewAccessKey(a.fullAccessKeyPair.AccountID, a.fullAccessKeyPair.PublicKey)
+	ak, err := a.conn.ViewAccessKey(ctx, a.fullAccessKeyPair.AccountID, a.fullAccessKeyPair.PublicKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -431,14 +445,14 @@ func (a *Account) findAccessKey() (publicKey ed25519.PublicKey, accessKey map[st
 	return pk, ak, nil
 }
 
-func (a *Account) findAccessKeyWithPublicKey(publicKey string) (map[string]interface{}, error) {
+func (a *Account) findAccessKeyWithPublicKey(ctx context.Context, publicKey string) (map[string]interface{}, error) {
 
 	a.funcCallKeyMutexes[publicKey].Lock()
 	defer a.funcCallKeyMutexes[publicKey].Unlock()
 	if ak := a.accessKeyByPublicKeyCache[publicKey]; ak != nil {
 		return ak, nil
 	}
-	ak, err := a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
+	ak, err := a.conn.ViewAccessKey(ctx, a.funcCallKeyPairs[publicKey].AccountID, publicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -448,12 +462,13 @@ func (a *Account) findAccessKeyWithPublicKey(publicKey string) (map[string]inter
 
 // FunctionCall performs a NEAR function call.
 func (a *Account) FunctionCall(
+	ctx context.Context,
 	contractID, methodName string,
 	args []byte,
 	gas uint64,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(contractID, []Action{{
+	return a.SignAndSendTransaction(ctx, contractID, []Action{{
 		Enum: 2,
 		FunctionCall: FunctionCall{
 			MethodName: methodName,
@@ -466,6 +481,7 @@ func (a *Account) FunctionCall(
 
 // FunctionCallWithMultiActionAndKey performs a NEAR function call for multiple actions with specific access key.
 func (a *Account) FunctionCallWithMultiActionAndKey(
+	ctx context.Context,
 	contractID string,
 	methodName string,
 	publicKey string,
@@ -486,12 +502,13 @@ func (a *Account) FunctionCallWithMultiActionAndKey(
 			},
 		})
 	}
-	return a.SignAndSendTransactionWithKey(contractID, publicKey, actions)
+	return a.SignAndSendTransactionWithKey(ctx, contractID, publicKey, actions)
 }
 
 // FunctionCallWithMultiActionAndKeyAndNonce performs a NEAR function call for multiple actions with specific access key
 // and nonce.
 func (a *Account) FunctionCallWithMultiActionAndKeyAndNonce(
+	ctx context.Context,
 	contractID string,
 	methodName string,
 	publicKey string,
@@ -513,17 +530,18 @@ func (a *Account) FunctionCallWithMultiActionAndKeyAndNonce(
 			},
 		})
 	}
-	return a.SignAndSendTransactionWithKeyAndNonce(contractID, publicKey, nonce, actions)
+	return a.SignAndSendTransactionWithKeyAndNonce(ctx, contractID, publicKey, nonce, actions)
 }
 
 // FunctionCallAsync performs an async NEAR function call.
 func (a *Account) FunctionCallAsync(
+	ctx context.Context,
 	contractID, methodName string,
 	args []byte,
 	gas uint64,
 	amount big.Int,
 ) (string, error) {
-	return a.SignAndSendTransactionAsync(contractID, []Action{{
+	return a.SignAndSendTransactionAsync(ctx, contractID, []Action{{
 		Enum: 2,
 		FunctionCall: FunctionCall{
 			MethodName: methodName,
@@ -536,6 +554,7 @@ func (a *Account) FunctionCallAsync(
 
 // FunctionCallAsyncWithMultiActionAndKey performs an async NEAR function call.
 func (a *Account) FunctionCallAsyncWithMultiActionAndKey(
+	ctx context.Context,
 	contractID string,
 	methodName string,
 	publicKey string,
@@ -556,11 +575,11 @@ func (a *Account) FunctionCallAsyncWithMultiActionAndKey(
 		})
 	}
 
-	return a.SignAndSendTransactionAsyncWithKey(contractID, publicKey, actions)
+	return a.SignAndSendTransactionAsyncWithKey(ctx, contractID, publicKey, actions)
 }
 
 // ViewFunction calls the provided contract method as a readonly function
-func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, options *int64) (interface{}, error) {
+func (a *Account) ViewFunction(ctx context.Context, accountId, methodName string, argsBuf []byte, options *int64) (interface{}, error) {
 	finality := "final"
 	var blockId int64
 	if options != nil {
@@ -591,7 +610,7 @@ func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, opt
 		rpcQueryMap["finality"] = finality
 	}
 
-	res, err := a.conn.call("query", rpcQueryMap)
+	res, err := a.conn.call(ctx, "query", rpcQueryMap)
 	if err != nil {
 		return nil, err
 	}
@@ -621,12 +640,12 @@ func getFunctionCallKeyPairFilePaths(path, prefixPattern string) []string {
 	return keyPairFiles
 }
 
-func (a *Account) ViewAccessKey(publicKey string) (map[string]interface{}, error) {
-	return a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
+func (a *Account) ViewAccessKey(ctx context.Context, publicKey string) (map[string]interface{}, error) {
+	return a.conn.ViewAccessKey(ctx, a.funcCallKeyPairs[publicKey].AccountID, publicKey)
 }
 
-func (a *Account) ViewNonce(publicKey string) (uint64, error) {
-	ak, err := a.conn.ViewAccessKey(a.funcCallKeyPairs[publicKey].AccountID, publicKey)
+func (a *Account) ViewNonce(ctx context.Context, publicKey string) (uint64, error) {
+	ak, err := a.conn.ViewAccessKey(ctx, a.funcCallKeyPairs[publicKey].AccountID, publicKey)
 	if err != nil {
 		return 0, err
 	}
