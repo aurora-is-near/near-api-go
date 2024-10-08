@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/aurora-is-near/near-api-go/types"
+	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/near/borsh-go"
 )
 
@@ -73,4 +74,34 @@ func VerifySignatureHex(publicKeyHex string, signatureHex string, messageHex str
 		return false, err
 	}
 	return VerifySignatureBytes(publicKey, signature, message)
+}
+
+// VerifySignature verifies a signature given the public key, signature, and message as strings.
+// The public key and signature should be in the "ed25519:..." format.
+func VerifySignatureBase58(pubKeyStr, signatureStr, messageHex string) (bool, error) {
+	// Parse the public key
+	pubKey, err := utils.Ed25519PublicKeyFromString(pubKeyStr)
+	if err != nil {
+		return false, err
+	}
+
+	// Parse the signature
+	signature, err := utils.Ed25519SignatureFromString(signatureStr)
+	if err != nil {
+		return false, err
+	}
+
+	// Decode the message from hex
+	messageBytes, err := hex.DecodeString(messageHex)
+	if err != nil {
+		return false, err
+	}
+
+	// Hash the message
+	hash := sha256.Sum256(messageBytes)
+
+	// Verify the signature
+	isValid := ed25519.Verify(pubKey, hash[:], signature)
+
+	return isValid, nil
 }

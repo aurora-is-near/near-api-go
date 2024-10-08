@@ -16,7 +16,7 @@ func TestVerifySignature(t *testing.T) {
 	}
 
 	// Create a message to sign
-	message := []byte("test message")
+	message := []byte("+16005551111evm.test-account.testnet")
 	messageHex := hex.EncodeToString(message)
 
 	// Hash the message
@@ -78,6 +78,24 @@ func TestVerifySignaturePrecomputed(t *testing.T) {
 
 	// Verify the signature
 	isValid, err := VerifySignatureHex(pubKey, signature, messageHex)
+	if err != nil {
+		t.Fatalf("Failed to verify signature: %v", err)
+	}
+	if !isValid {
+		t.Fatal("Signature should be valid for the given public key")
+	}
+}
+
+func TestVerifySignatureString(t *testing.T) {
+	message := "+16005551111evm.test-account.testnet"
+	pubKey := "ed25519:3MVWwQTnSU8RVNe1Z5Ytv9zVE16aXLuHkvEha4LvDH1z"
+	signature := "ed25519:3cn6uwA9hVtK8S4ib2coEt8HTV1pjuCLtZs5iUx4zKmXhAUd73rhXcmG2icFk1mF5zy4B2wVkjoisWZQczDG5nXV"
+
+	// Convert message to hex
+	messageHex := hex.EncodeToString([]byte(message))
+
+	// Verify the signature
+	isValid, err := VerifySignatureBase58(pubKey, signature, messageHex)
 	if err != nil {
 		t.Fatalf("Failed to verify signature: %v", err)
 	}
