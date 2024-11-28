@@ -32,6 +32,11 @@ func GenerateEd25519KeyPair(accountID string) (*Ed25519KeyPair, error) {
 	return KeyPairFromPrivateKey(accountID, privateKey), nil
 }
 
+// ParseEd25519PrivateKey parses a private key string and returns an ed25519.PrivateKey.
+func ParseEd25519PrivateKey(privateKeyString string) (ed25519.PrivateKey, error) {
+	return utils.Ed25519PrivateKeyFromString(privateKeyString)
+}
+
 // KeyPairFromPrivateKey creates a key-pair given an accountID and a private key.
 func KeyPairFromPrivateKey(accountID string, privateKey ed25519.PrivateKey) *Ed25519KeyPair {
 	publicKey := privateKey.Public().(ed25519.PublicKey)

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/aurora-is-near/near-api-go/keystore"
+	"github.com/aurora-is-near/near-api-go/types"
 	"github.com/aurora-is-near/near-api-go/utils"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/near/borsh-go"
@@ -126,10 +127,10 @@ func (a *Account) SendMoney(
 	receiverID string,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(receiverID, []Action{
+	return a.SignAndSendTransaction(receiverID, []types.Action{
 		{
 			Enum: 3,
-			Transfer: Transfer{
+			Transfer: types.Transfer{
 				Deposit: amount,
 			},
 		},
@@ -138,15 +139,15 @@ func (a *Account) SendMoney(
 
 // AddKeys adds the given publicKeys to the account with full access.
 func (a *Account) AddKeys(
-	publicKeys ...utils.PublicKey,
+	publicKeys ...types.PublicKey,
 ) (map[string]interface{}, error) {
 	fullAccessKey := fullAccessKey()
-	actions := make([]Action, 0)
+	actions := make([]types.Action, 0)
 	for _, pk := range publicKeys {
-		actions = append(actions, Action{
+		actions = append(actions, types.Action{
 			Enum: 5,
-			AddKey: AddKey{
-				PublicKey: pk,
+			AddKey: types.AddKey{
+				PublicKey: types.PublicKey(pk),
 				AccessKey: fullAccessKey,
 			},
 		})
@@ -156,14 +157,14 @@ func (a *Account) AddKeys(
 
 // DeleteKeys deletes the given publicKeys from the account.
 func (a *Account) DeleteKeys(
-	publicKeys ...utils.PublicKey,
+	publicKeys ...types.PublicKey,
 ) (map[string]interface{}, error) {
-	actions := make([]Action, 0)
+	actions := make([]types.Action, 0)
 	for _, pk := range publicKeys {
-		actions = append(actions, Action{
+		actions = append(actions, types.Action{
 			Enum: 6,
-			DeleteKey: DeleteKey{
-				PublicKey: pk,
+			DeleteKey: types.DeleteKey{
+				PublicKey: types.PublicKey(pk),
 			},
 		})
 	}
@@ -173,24 +174,24 @@ func (a *Account) DeleteKeys(
 // CreateAccount creates the newAccountID with the given publicKey and amount.
 func (a *Account) CreateAccount(
 	newAccountID string,
-	publicKey utils.PublicKey,
+	publicKey types.PublicKey,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(newAccountID, []Action{
+	return a.SignAndSendTransaction(newAccountID, []types.Action{
 		{
 			Enum:          0,
 			CreateAccount: 0,
 		},
 		{
 			Enum: 3,
-			Transfer: Transfer{
+			Transfer: types.Transfer{
 				Deposit: amount,
 			},
 		},
 		{
 			Enum: 5,
-			AddKey: AddKey{
-				PublicKey: publicKey,
+			AddKey: types.AddKey{
+				PublicKey: types.PublicKey(publicKey),
 				AccessKey: fullAccessKey(),
 			},
 		},
@@ -202,10 +203,10 @@ func (a *Account) CreateAccount(
 func (a *Account) DeleteAccount(
 	beneficiaryID string,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, []Action{
+	return a.SignAndSendTransaction(a.fullAccessKeyPair.AccountID, []types.Action{
 		{
 			Enum: 7,
-			DeleteAccount: DeleteAccount{
+			DeleteAccount: types.DeleteAccount{
 				BeneficiaryID: beneficiaryID,
 			},
 		},
@@ -215,7 +216,7 @@ func (a *Account) DeleteAccount(
 // SignAndSendTransaction signs the given actions and sends them as a transaction to receiverID.
 func (a *Account) SignAndSendTransaction(
 	receiverID string,
-	actions []Action,
+	actions []types.Action,
 ) (map[string]interface{}, error) {
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
@@ -241,7 +242,7 @@ func (a *Account) SignAndSendTransaction(
 func (a *Account) SignAndSendTransactionWithKey(
 	receiverID string,
 	publicKey string,
-	actions []Action,
+	actions []types.Action,
 ) (map[string]interface{}, error) {
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
@@ -268,7 +269,7 @@ func (a *Account) SignAndSendTransactionWithKeyAndNonce(
 	receiverID string,
 	publicKey string,
 	nonce uint64,
-	actions []Action,
+	actions []types.Action,
 ) (map[string]interface{}, error) {
 	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
 		func() ([]byte, error) {
@@ -291,7 +292,7 @@ func (a *Account) SignAndSendTransactionWithKeyAndNonce(
 // SignAndSendTransactionAsync signs the given actions and sends it immediately
 func (a *Account) SignAndSendTransactionAsync(
 	receiverID string,
-	actions []Action,
+	actions []types.Action,
 ) (string, error) {
 	_, signedTx, err := a.signTransaction(receiverID, actions)
 	if err != nil {
@@ -309,7 +310,7 @@ func (a *Account) SignAndSendTransactionAsync(
 func (a *Account) SignAndSendTransactionAsyncWithKey(
 	receiverID string,
 	publicKey string,
-	actions []Action,
+	actions []types.Action,
 ) (string, error) {
 	_, signedTx, err := a.signTransactionWithKey(receiverID, publicKey, actions)
 	if err != nil {
@@ -325,8 +326,8 @@ func (a *Account) SignAndSendTransactionAsyncWithKey(
 
 func (a *Account) signTransaction(
 	receiverID string,
-	actions []Action,
-) (txHash []byte, signedTx *SignedTransaction, err error) {
+	actions []types.Action,
+) (txHash []byte, signedTx *types.SignedTransaction, err error) {
 	_, ak, err := a.findAccessKey()
 	if err != nil {
 		return nil, nil, err
@@ -362,8 +363,8 @@ func (a *Account) signTransaction(
 func (a *Account) signTransactionWithKey(
 	receiverID string,
 	publicKey string,
-	actions []Action,
-) ([]byte, *SignedTransaction, error) {
+	actions []types.Action,
+) ([]byte, *types.SignedTransaction, error) {
 
 	ak, err := a.findAccessKeyWithPublicKey(publicKey)
 	if err != nil {
@@ -401,8 +402,8 @@ func (a *Account) signTransactionWithKeyAndNonce(
 	receiverID string,
 	publicKey string,
 	nonce uint64,
-	actions []Action,
-) ([]byte, *SignedTransaction, error) {
+	actions []types.Action,
+) ([]byte, *types.SignedTransaction, error) {
 
 	// get current block hash
 	block, err := a.conn.Block()
@@ -453,9 +454,9 @@ func (a *Account) FunctionCall(
 	gas uint64,
 	amount big.Int,
 ) (map[string]interface{}, error) {
-	return a.SignAndSendTransaction(contractID, []Action{{
+	return a.SignAndSendTransaction(contractID, []types.Action{{
 		Enum: 2,
-		FunctionCall: FunctionCall{
+		FunctionCall: types.FunctionCall{
 			MethodName: methodName,
 			Args:       args,
 			Gas:        gas,
@@ -474,11 +475,11 @@ func (a *Account) FunctionCallWithMultiActionAndKey(
 	amount big.Int,
 ) (map[string]interface{}, error) {
 
-	actions := make([]Action, 0)
+	actions := make([]types.Action, 0)
 	for _, args := range argsSlice {
-		actions = append(actions, Action{
+		actions = append(actions, types.Action{
 			Enum: 2,
-			FunctionCall: FunctionCall{
+			FunctionCall: types.FunctionCall{
 				MethodName: methodName,
 				Args:       args,
 				Gas:        gas,
@@ -501,11 +502,11 @@ func (a *Account) FunctionCallWithMultiActionAndKeyAndNonce(
 	amount big.Int,
 ) (map[string]interface{}, error) {
 
-	actions := make([]Action, 0)
+	actions := make([]types.Action, 0)
 	for _, args := range argsSlice {
-		actions = append(actions, Action{
+		actions = append(actions, types.Action{
 			Enum: 2,
-			FunctionCall: FunctionCall{
+			FunctionCall: types.FunctionCall{
 				MethodName: methodName,
 				Args:       args,
 				Gas:        gas,
@@ -523,9 +524,9 @@ func (a *Account) FunctionCallAsync(
 	gas uint64,
 	amount big.Int,
 ) (string, error) {
-	return a.SignAndSendTransactionAsync(contractID, []Action{{
+	return a.SignAndSendTransactionAsync(contractID, []types.Action{{
 		Enum: 2,
-		FunctionCall: FunctionCall{
+		FunctionCall: types.FunctionCall{
 			MethodName: methodName,
 			Args:       args,
 			Gas:        gas,
@@ -543,11 +544,11 @@ func (a *Account) FunctionCallAsyncWithMultiActionAndKey(
 	gas uint64,
 	amount big.Int,
 ) (string, error) {
-	actions := make([]Action, 0)
+	actions := make([]types.Action, 0)
 	for _, args := range argsSlice {
-		actions = append(actions, Action{
+		actions = append(actions, types.Action{
 			Enum: 2,
-			FunctionCall: FunctionCall{
+			FunctionCall: types.FunctionCall{
 				MethodName: methodName,
 				Args:       args,
 				Gas:        gas,

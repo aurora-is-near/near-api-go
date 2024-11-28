@@ -41,7 +41,7 @@ func GoCall(network, accountID, contract, method, argfile string) (string, inter
 	if err != nil {
 		return arghash, nil, err
 	}
-	resp, err := account.FunctionCall(contract, method, args, 100_000_000_000_000, *(big.NewInt(0)))
+	resp, err := account.FunctionCall(contract, method, args, 10_000_000_000_000, *(big.NewInt(0)))
 	if err != nil {
 		return arghash, nil, err
 	}
