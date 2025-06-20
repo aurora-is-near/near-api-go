@@ -2,6 +2,7 @@
 package near
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/aurora-is-near/go-jsonrpc/v3"
+	"github.com/btcsuite/btcd/btcutil/base58"
+	"github.com/near/borsh-go"
 )
 
 // Connection allows to do JSON-RPC to a NEAR endpoint.
@@ -202,6 +205,60 @@ func (c *Connection) SendTransactionAsync(signedTransaction []byte) (string, err
 	if !ok {
 		return "", ErrNotString
 	}
+	return r, nil
+}
+
+// computeTransactionHash computes the hash of a transaction from signed transaction bytes.
+func computeTransactionHash(signedTransactionBytes []byte) (string, error) {
+	var signedTx SignedTransaction
+	err := borsh.Deserialize(&signedTx, signedTransactionBytes)
+	if err != nil {
+		return "", err
+	}
+
+	txBytes, err := borsh.Serialize(signedTx.Transaction)
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha256.Sum256(txBytes)
+
+	return base58.Encode(hash[:]), nil
+}
+
+// SendTx sends a signed transaction using send_tx RPC method with configurable wait behavior.
+//
+// For details see
+// https://docs.near.org/api/rpc/transactions#send-tx
+func (c *Connection) SendTx(signedTransaction []byte, waitUntil TxExecutionStatus) (interface{}, error) {
+	res, err := c.call("send_tx", map[string]interface{}{
+		"signed_tx_base64": base64.StdEncoding.EncodeToString(signedTransaction),
+		"wait_until":       waitUntil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	r, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, ErrNotObject
+	}
+
+	if waitUntil == TxExecutionStatus_None {
+		txHash, err := computeTransactionHash(signedTransaction)
+		if err != nil {
+			return nil, err
+		}
+
+		return map[string]interface{}{
+			"result": map[string]interface{}{
+				"transaction": map[string]interface{}{
+					"hash": txHash,
+				},
+			},
+		}, nil
+	}
+
 	return r, nil
 }
 

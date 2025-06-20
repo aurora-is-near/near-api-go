@@ -559,6 +559,93 @@ func (a *Account) FunctionCallAsyncWithMultiActionAndKey(
 	return a.SignAndSendTransactionAsyncWithKey(contractID, publicKey, actions)
 }
 
+// SignAndSendTx signs and sends a transaction using send_tx RPC method with configurable wait behavior.
+// Returns transaction hash for NONE status, or full transaction result for other statuses.
+func (a *Account) SignAndSendTx(
+	receiverID string,
+	actions []Action,
+	waitUntil TxExecutionStatus,
+) (interface{}, error) {
+	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
+		func() ([]byte, error) {
+			_, signedTx, err := a.signTransaction(receiverID, actions)
+			if err != nil {
+				return nil, err
+			}
+
+			buf, err := borsh.Serialize(*signedTx)
+			if err != nil {
+				return nil, err
+			}
+			return buf, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return a.conn.SendTx(buf, waitUntil)
+}
+
+// SignAndSendTxWithKey signs and sends a transaction with a specific key using send_tx RPC method.
+func (a *Account) SignAndSendTxWithKey(
+	receiverID string,
+	publicKey string,
+	actions []Action,
+	waitUntil TxExecutionStatus,
+) (interface{}, error) {
+	buf, err := utils.ExponentialBackoff(txNonceRetryWait, txNonceRetryNumber, txNonceRetryWaitBackoff,
+		func() ([]byte, error) {
+			_, signedTx, err := a.signTransactionWithKey(receiverID, publicKey, actions)
+			if err != nil {
+				return nil, err
+			}
+
+			buf, err := borsh.Serialize(*signedTx)
+			if err != nil {
+				return nil, err
+			}
+			return buf, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return a.conn.SendTx(buf, waitUntil)
+}
+
+// FunctionCallTx performs a NEAR function call using send_tx RPC method.
+func (a *Account) FunctionCallTx(
+	contractID, methodName string,
+	args []byte,
+	gas uint64,
+	amount big.Int,
+	waitUntil TxExecutionStatus,
+) (interface{}, error) {
+	return a.SignAndSendTx(contractID, []Action{{
+		Enum: 2,
+		FunctionCall: FunctionCall{
+			MethodName: methodName,
+			Args:       args,
+			Gas:        gas,
+			Deposit:    amount,
+		},
+	}}, waitUntil)
+}
+
+// SendMoneyTx sends amount NEAR using send_tx RPC method.
+func (a *Account) SendMoneyTx(
+	receiverID string,
+	amount big.Int,
+	waitUntil TxExecutionStatus,
+) (interface{}, error) {
+	return a.SignAndSendTx(receiverID, []Action{
+		{
+			Enum: 3,
+			Transfer: Transfer{
+				Deposit: amount,
+			},
+		},
+	}, waitUntil)
+}
+
 // ViewFunction calls the provided contract method as a readonly function
 func (a *Account) ViewFunction(accountId, methodName string, argsBuf []byte, options *int64) (interface{}, error) {
 	finality := "final"
